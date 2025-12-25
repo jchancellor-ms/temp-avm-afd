@@ -1,25 +1,351 @@
-variable "location" {
-  type        = string
-  description = "Azure region where the resource should be deployed."
-  nullable    = false
-}
-
 variable "name" {
   type        = string
-  description = "The name of the this resource."
+  description = "The name of the CDN profile."
 
   validation {
-    condition     = can(regex("TODO", var.name))
-    error_message = "The name must be TODO." # TODO remove the example below once complete:
-    #condition     = can(regex("^[a-z0-9]{5,50}$", var.name))
-    #error_message = "The name must be between 5 and 50 characters long and can only contain lowercase letters and numbers."
+    condition     = can(regex("^[a-zA-Z0-9]+(-*[a-zA-Z0-9])*$", var.name)) && length(var.name) >= 1 && length(var.name) <= 260
+    error_message = "The name must be between 1 and 260 characters, contain only alphanumeric characters and hyphens, and cannot start or end with a hyphen."
   }
 }
 
-# This is required for most resource modules
-variable "resource_group_name" {
+variable "location" {
   type        = string
-  description = "The resource group where the resources will be deployed."
+  description = "The geo-location where the CDN profile resource lives."
+  default     = "global"
+}
+
+variable "resource_group_id" {
+  type        = string
+  description = "The resource ID of the resource group where the CDN profile will be deployed."
+}
+
+variable "sku_name" {
+  type        = string
+  description = "The pricing tier (defines Azure Front Door Standard or Premium or a CDN provider, feature list and rate) of the profile."
+
+  validation {
+    condition = contains([
+      "Classic_AzureFrontDoor",
+      "Custom_Verizon",
+      "Premium_AzureFrontDoor",
+      "Premium_Verizon",
+      "StandardPlus_955BandWidth_ChinaCdn",
+      "StandardPlus_AvgBandWidth_ChinaCdn",
+      "StandardPlus_ChinaCdn",
+      "Standard_955BandWidth_ChinaCdn",
+      "Standard_Akamai",
+      "Standard_AvgBandWidth_ChinaCdn",
+      "Standard_AzureFrontDoor",
+      "Standard_ChinaCdn",
+      "Standard_Microsoft",
+      "Standard_Verizon"
+    ], var.sku_name)
+    error_message = "Invalid SKU name specified."
+  }
+}
+
+variable "origin_response_timeout_seconds" {
+  type        = number
+  description = "Send and receive timeout on forwarding request to the origin. When timeout is reached, the request fails and returns."
+  default     = 60
+
+  validation {
+    condition     = var.origin_response_timeout_seconds >= 16
+    error_message = "The origin_response_timeout_seconds must be at least 16."
+  }
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "Resource tags for the CDN profile."
+  default     = {}
+}
+
+variable "managed_identities" {
+  type = object({
+    system_assigned            = optional(bool, false)
+    user_assigned_resource_ids = optional(list(string), [])
+  })
+  description = "The managed identity configuration for the CDN profile."
+  default     = null
+}
+
+variable "log_scrubbing" {
+  type = object({
+    state = optional(string, "Enabled")
+    scrubbing_rules = optional(list(object({
+      match_variable          = string
+      selector_match_operator = string
+      selector                = optional(string)
+      state                   = optional(string, "Enabled")
+    })), [])
+  })
+  description = "Defines rules that scrub sensitive fields in the Azure Front Door profile logs."
+  default     = null
+}
+
+variable "secrets" {
+  type = map(object({
+    name                      = string
+    type                      = optional(string, "AzureFirstPartyManagedCertificate")
+    secret_source_resource_id = optional(string)
+    secret_version            = optional(string)
+    use_latest_version        = optional(bool, false)
+    subject_alternative_names = optional(list(string), [])
+    key_id                    = optional(string)
+  }))
+  description = "Map of secrets to create in the CDN profile."
+  default     = {}
+}
+
+variable "custom_domains" {
+  type = map(object({
+    name                                    = string
+    host_name                               = string
+    azure_dns_zone_id                       = optional(string)
+    extended_properties                     = optional(map(string))
+    pre_validated_custom_domain_resource_id = optional(string)
+    tls_settings = optional(object({
+      certificate_type            = string
+      minimum_tls_version         = optional(string, "TLS12")
+      secret_name                 = optional(string)
+      cipher_suite_set_type       = optional(string)
+      customized_cipher_suite_set = optional(list(string))
+    }))
+    mtls_settings = optional(object({
+      scenario                          = string
+      certificate_authority_resource_id = optional(string)
+      secret_name                       = optional(string)
+      minimum_tls_version               = optional(string, "TLS12")
+    }))
+  }))
+  description = "Map of custom domains to create in the CDN profile."
+  default     = {}
+}
+
+variable "origin_groups" {
+  type = map(object({
+    name = string
+    load_balancing_settings = object({
+      additional_latency_in_milliseconds = optional(number, 50)
+      sample_size                        = optional(number, 4)
+      successful_samples_required        = optional(number, 3)
+    })
+    health_probe_settings = optional(object({
+      probe_interval_in_seconds = optional(number, 240)
+      probe_path                = optional(string, "/")
+      probe_protocol            = optional(string, "Http")
+      probe_request_type        = optional(string, "HEAD")
+    }))
+    session_affinity_state                                         = optional(string, "Disabled")
+    traffic_restoration_time_to_healed_or_new_endpoints_in_minutes = optional(number, 10)
+    authentication = optional(object({
+      scope = string
+      type  = string
+      user_assigned_identity = optional(object({
+        resource_id = string
+      }))
+    }))
+    origins = list(object({
+      name                           = string
+      host_name                      = string
+      http_port                      = optional(number, 80)
+      https_port                     = optional(number, 443)
+      origin_host_header             = optional(string)
+      priority                       = optional(number, 1)
+      weight                         = optional(number, 1000)
+      enabled_state                  = optional(string, "Enabled")
+      enforce_certificate_name_check = optional(bool, true)
+      origin_capacity_resource = optional(object({
+        enabled                       = optional(bool, false)
+        origin_ingress_rate_threshold = optional(number)
+        origin_request_rate_threshold = optional(number)
+        region                        = optional(string)
+      }))
+      shared_private_link_resource = optional(object({
+        group_id              = optional(string)
+        private_link_id       = string
+        private_link_location = string
+        request_message       = optional(string)
+        status                = optional(string)
+      }))
+    }))
+  }))
+  description = "Map of origin groups to create in the CDN profile."
+  default     = {}
+}
+
+variable "rule_sets" {
+  type = map(object({
+    name = string
+    rules = optional(list(object({
+      name                      = string
+      order                     = number
+      actions                   = optional(list(map(any)), [])
+      conditions                = optional(list(map(any)), [])
+      match_processing_behavior = optional(string, "Continue")
+    })), [])
+  }))
+  description = "Map of rule sets to create in the CDN profile."
+  default     = {}
+}
+
+variable "afd_endpoints" {
+  type = map(object({
+    name                                   = string
+    auto_generated_domain_name_label_scope = optional(string)
+    enabled_state                          = optional(string, "Enabled")
+    enforce_mtls                           = optional(bool, false)
+    routes = optional(list(object({
+      name                   = string
+      custom_domains         = optional(list(object({ id = string })), [])
+      origin_group_id        = string
+      origin_path            = optional(string)
+      rule_sets              = optional(list(object({ id = string })), [])
+      supported_protocols    = optional(list(string), ["Http", "Https"])
+      patterns_to_match      = optional(list(string), ["/*"])
+      forwarding_protocol    = optional(string, "MatchRequest")
+      link_to_default_domain = optional(string, "Enabled")
+      https_redirect         = optional(string, "Enabled")
+      enabled_state          = optional(string, "Enabled")
+      grpc_state             = optional(string, "Disabled")
+      cache_configuration = optional(object({
+        query_string_caching_behavior = optional(string)
+        query_parameters              = optional(string)
+        compression_settings = optional(object({
+          content_types_to_compress = optional(list(string))
+          is_compression_enabled    = optional(string)
+        }))
+        cache_behavior = optional(string)
+        cache_duration = optional(string)
+      }))
+    })), [])
+    tags = optional(map(string))
+  }))
+  description = "Map of AFD endpoints to create in the CDN profile."
+  default     = {}
+}
+
+variable "security_policies" {
+  type = map(object({
+    name                   = string
+    type                   = optional(string, "WebApplicationFirewall")
+    waf_policy_resource_id = optional(string)
+    associations = list(object({
+      domains = list(object({
+        id = string
+      }))
+      patterns_to_match = list(string)
+    }))
+    embedded_waf_policy = optional(object({
+      etag = optional(string)
+      sku = optional(object({
+        name = string
+      }))
+      properties = optional(object({
+        custom_rules = optional(object({
+          rules = optional(list(object({
+            name                           = optional(string)
+            priority                       = number
+            rule_type                      = string
+            action                         = string
+            enabled_state                  = optional(string, "Enabled")
+            rate_limit_duration_in_minutes = optional(number)
+            rate_limit_threshold           = optional(number)
+            match_conditions = list(object({
+              match_variable   = string
+              operator         = string
+              match_value      = list(string)
+              selector         = optional(string)
+              negate_condition = optional(bool, false)
+              transforms       = optional(list(string), [])
+            }))
+            group_by = optional(list(object({
+              variable_name = string
+            })), [])
+          })))
+        }))
+        managed_rules = optional(object({
+          managed_rule_sets = optional(list(object({
+            rule_set_type    = string
+            rule_set_version = string
+            rule_set_action  = optional(string)
+            exclusions = optional(list(object({
+              match_variable          = string
+              selector                = string
+              selector_match_operator = string
+            })), [])
+            rule_group_overrides = optional(list(object({
+              rule_group_name = string
+              exclusions = optional(list(object({
+                match_variable          = string
+                selector                = string
+                selector_match_operator = string
+              })), [])
+              rules = optional(list(object({
+                rule_id       = string
+                enabled_state = optional(string)
+                action        = optional(string)
+                exclusions = optional(list(object({
+                  match_variable          = string
+                  selector                = string
+                  selector_match_operator = string
+                })), [])
+              })), [])
+            })), [])
+          })))
+        }))
+        policy_settings = optional(object({
+          enabled_state                              = optional(string, "Enabled")
+          mode                                       = optional(string, "Prevention")
+          request_body_check                         = optional(string)
+          custom_block_response_status_code          = optional(number)
+          custom_block_response_body                 = optional(string)
+          redirect_url                               = optional(string)
+          captcha_expiration_in_minutes              = optional(number)
+          javascript_challenge_expiration_in_minutes = optional(number)
+          log_scrubbing = optional(object({
+            state = optional(string, "Enabled")
+            scrubbing_rules = optional(list(object({
+              match_variable          = string
+              selector_match_operator = string
+              selector                = optional(string)
+              state                   = optional(string, "Enabled")
+            })), [])
+          }))
+        }))
+      }))
+    }))
+  }))
+  description = "Map of security policies to create in the CDN profile."
+  default     = {}
+}
+
+variable "target_groups" {
+  type = map(object({
+    name = string
+    target_endpoints = list(object({
+      target_fqdn = string
+      ports       = list(number)
+    }))
+  }))
+  description = "Map of target groups to create in the CDN profile."
+  default     = {}
+}
+
+variable "tunnel_policies" {
+  type = map(object({
+    name        = string
+    tunnel_type = optional(string, "HttpConnect")
+    domains = optional(list(object({
+      id = string
+    })), [])
+    target_groups = optional(list(object({
+      id = string
+    })), [])
+  }))
+  description = "Map of tunnel policies to create in the CDN profile."
+  default     = {}
 }
 
 # required AVM interfaces

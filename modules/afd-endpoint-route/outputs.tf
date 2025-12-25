@@ -1,0 +1,14 @@
+output "id" {
+  description = "The resource ID of the route."
+  value       = azapi_resource.route.id
+}
+
+output "name" {
+  description = "The name of the route."
+  value       = azapi_resource.route.name
+}
+
+output "resource_id" {
+  description = "The resource ID of the route."
+  value       = azapi_resource.route.id
+}
