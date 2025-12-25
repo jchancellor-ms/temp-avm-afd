@@ -23,12 +23,7 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
-- [azurerm_private_endpoint.this_managed_dns_zone_groups](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_endpoint) (resource)
-- [azurerm_private_endpoint.this_unmanaged_dns_zone_groups](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_endpoint) (resource)
-- [azurerm_private_endpoint_application_security_group_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_endpoint_application_security_group_association) (resource)
-- [azurerm_resource_group.TODO](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
+- [azapi_resource.profile](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
@@ -39,27 +34,100 @@ The following resources are used by this module:
 
 The following input variables are required:
 
-### <a name="input_location"></a> [location](#input\_location)
-
-Description: Azure region where the resource should be deployed.
-
-Type: `string`
-
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the this resource.
+Description: The name of the CDN profile.
 
 Type: `string`
 
-### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
+### <a name="input_resource_group_id"></a> [resource\_group\_id](#input\_resource\_group\_id)
 
-Description: The resource group where the resources will be deployed.
+Description: The resource ID of the resource group where the CDN profile will be deployed.
+
+Type: `string`
+
+### <a name="input_sku_name"></a> [sku\_name](#input\_sku\_name)
+
+Description: The pricing tier (defines Azure Front Door Standard or Premium or a CDN provider, feature list and rate) of the profile.
 
 Type: `string`
 
 ## Optional Inputs
 
 The following input variables are optional (have default values):
+
+### <a name="input_afd_endpoints"></a> [afd\_endpoints](#input\_afd\_endpoints)
+
+Description: Map of AFD endpoints to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name                                   = string
+    auto_generated_domain_name_label_scope = optional(string)
+    enabled_state                          = optional(string, "Enabled")
+    enforce_mtls                           = optional(bool, false)
+    routes = optional(list(object({
+      name                   = string
+      custom_domains         = optional(list(object({ id = string })), [])
+      origin_group_id        = string
+      origin_path            = optional(string)
+      rule_sets              = optional(list(object({ id = string })), [])
+      supported_protocols    = optional(list(string), ["Http", "Https"])
+      patterns_to_match      = optional(list(string), ["/*"])
+      forwarding_protocol    = optional(string, "MatchRequest")
+      link_to_default_domain = optional(string, "Enabled")
+      https_redirect         = optional(string, "Enabled")
+      enabled_state          = optional(string, "Enabled")
+      grpc_state             = optional(string, "Disabled")
+      cache_configuration = optional(object({
+        query_string_caching_behavior = optional(string)
+        query_parameters              = optional(string)
+        compression_settings = optional(object({
+          content_types_to_compress = optional(list(string))
+          is_compression_enabled    = optional(string)
+        }))
+        cache_behavior = optional(string)
+        cache_duration = optional(string)
+      }))
+    })), [])
+    tags = optional(map(string))
+  }))
+```
+
+Default: `{}`
+
+### <a name="input_custom_domains"></a> [custom\_domains](#input\_custom\_domains)
+
+Description: Map of custom domains to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name                                    = string
+    host_name                               = string
+    azure_dns_zone_id                       = optional(string)
+    extended_properties                     = optional(map(string))
+    pre_validated_custom_domain_resource_id = optional(string)
+    tls_settings = optional(object({
+      certificate_type            = string
+      minimum_tls_version         = optional(string, "TLS12")
+      secret_name                 = optional(string)
+      cipher_suite_set_type       = optional(string)
+      customized_cipher_suite_set = optional(list(string))
+    }))
+    mtls_settings = optional(object({
+      scenario                          = string
+      certificate_authority_resource_id = optional(string)
+      secret_name                       = optional(string)
+      minimum_tls_version               = optional(string, "TLS12")
+    }))
+  }))
+```
+
+Default: `{}`
 
 ### <a name="input_customer_managed_key"></a> [customer\_managed\_key](#input\_customer\_managed\_key)
 
@@ -129,6 +197,14 @@ Type: `bool`
 
 Default: `true`
 
+### <a name="input_location"></a> [location](#input\_location)
+
+Description: The geo-location where the CDN profile resource lives.
+
+Type: `string`
+
+Default: `"global"`
+
 ### <a name="input_lock"></a> [lock](#input\_lock)
 
 Description: Controls the Resource Lock configuration for this resource. The following properties can be specified:
@@ -142,6 +218,26 @@ Type:
 object({
     kind = string
     name = optional(string, null)
+  })
+```
+
+Default: `null`
+
+### <a name="input_log_scrubbing"></a> [log\_scrubbing](#input\_log\_scrubbing)
+
+Description: Defines rules that scrub sensitive fields in the Azure Front Door profile logs.
+
+Type:
+
+```hcl
+object({
+    state = optional(string, "Enabled")
+    scrubbing_rules = optional(list(object({
+      match_variable          = string
+      selector_match_operator = string
+      selector                = optional(string)
+      state                   = optional(string, "Enabled")
+    })), [])
   })
 ```
 
@@ -164,6 +260,72 @@ object({
 ```
 
 Default: `{}`
+
+### <a name="input_origin_groups"></a> [origin\_groups](#input\_origin\_groups)
+
+Description: Map of origin groups to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name = string
+    load_balancing_settings = object({
+      additional_latency_in_milliseconds = optional(number, 50)
+      sample_size                        = optional(number, 4)
+      successful_samples_required        = optional(number, 3)
+    })
+    health_probe_settings = optional(object({
+      probe_interval_in_seconds = optional(number, 240)
+      probe_path                = optional(string, "/")
+      probe_protocol            = optional(string, "Http")
+      probe_request_type        = optional(string, "HEAD")
+    }))
+    session_affinity_state                                         = optional(string, "Disabled")
+    traffic_restoration_time_to_healed_or_new_endpoints_in_minutes = optional(number, 10)
+    authentication = optional(object({
+      scope = string
+      type  = string
+      user_assigned_identity = optional(object({
+        resource_id = string
+      }))
+    }))
+    origins = list(object({
+      name                           = string
+      host_name                      = string
+      http_port                      = optional(number, 80)
+      https_port                     = optional(number, 443)
+      origin_host_header             = optional(string)
+      priority                       = optional(number, 1)
+      weight                         = optional(number, 1000)
+      enabled_state                  = optional(string, "Enabled")
+      enforce_certificate_name_check = optional(bool, true)
+      origin_capacity_resource = optional(object({
+        enabled                       = optional(bool, false)
+        origin_ingress_rate_threshold = optional(number)
+        origin_request_rate_threshold = optional(number)
+        region                        = optional(string)
+      }))
+      shared_private_link_resource = optional(object({
+        group_id              = optional(string)
+        private_link_id       = string
+        private_link_location = string
+        request_message       = optional(string)
+        status                = optional(string)
+      }))
+    }))
+  }))
+```
+
+Default: `{}`
+
+### <a name="input_origin_response_timeout_seconds"></a> [origin\_response\_timeout\_seconds](#input\_origin\_response\_timeout\_seconds)
+
+Description: Send and receive timeout on forwarding request to the origin. When timeout is reached, the request fails and returns.
+
+Type: `number`
+
+Default: `60`
 
 ### <a name="input_private_endpoints"></a> [private\_endpoints](#input\_private\_endpoints)
 
@@ -261,6 +423,148 @@ map(object({
 
 Default: `{}`
 
+### <a name="input_rule_sets"></a> [rule\_sets](#input\_rule\_sets)
+
+Description: Map of rule sets to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name = string
+    rules = optional(list(object({
+      name                      = string
+      order                     = number
+      actions                   = optional(list(map(any)), [])
+      conditions                = optional(list(map(any)), [])
+      match_processing_behavior = optional(string, "Continue")
+    })), [])
+  }))
+```
+
+Default: `{}`
+
+### <a name="input_secrets"></a> [secrets](#input\_secrets)
+
+Description: Map of secrets to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name                      = string
+    type                      = optional(string, "AzureFirstPartyManagedCertificate")
+    secret_source_resource_id = optional(string)
+    secret_version            = optional(string)
+    use_latest_version        = optional(bool, false)
+    subject_alternative_names = optional(list(string), [])
+    key_id                    = optional(string)
+  }))
+```
+
+Default: `{}`
+
+### <a name="input_security_policies"></a> [security\_policies](#input\_security\_policies)
+
+Description: Map of security policies to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name                   = string
+    type                   = optional(string, "WebApplicationFirewall")
+    waf_policy_resource_id = optional(string)
+    associations = list(object({
+      domains = list(object({
+        id = string
+      }))
+      patterns_to_match = list(string)
+    }))
+    embedded_waf_policy = optional(object({
+      etag = optional(string)
+      sku = optional(object({
+        name = string
+      }))
+      properties = optional(object({
+        custom_rules = optional(object({
+          rules = optional(list(object({
+            name                           = optional(string)
+            priority                       = number
+            rule_type                      = string
+            action                         = string
+            enabled_state                  = optional(string, "Enabled")
+            rate_limit_duration_in_minutes = optional(number)
+            rate_limit_threshold           = optional(number)
+            match_conditions = list(object({
+              match_variable   = string
+              operator         = string
+              match_value      = list(string)
+              selector         = optional(string)
+              negate_condition = optional(bool, false)
+              transforms       = optional(list(string), [])
+            }))
+            group_by = optional(list(object({
+              variable_name = string
+            })), [])
+          })))
+        }))
+        managed_rules = optional(object({
+          managed_rule_sets = optional(list(object({
+            rule_set_type    = string
+            rule_set_version = string
+            rule_set_action  = optional(string)
+            exclusions = optional(list(object({
+              match_variable          = string
+              selector                = string
+              selector_match_operator = string
+            })), [])
+            rule_group_overrides = optional(list(object({
+              rule_group_name = string
+              exclusions = optional(list(object({
+                match_variable          = string
+                selector                = string
+                selector_match_operator = string
+              })), [])
+              rules = optional(list(object({
+                rule_id       = string
+                enabled_state = optional(string)
+                action        = optional(string)
+                exclusions = optional(list(object({
+                  match_variable          = string
+                  selector                = string
+                  selector_match_operator = string
+                })), [])
+              })), [])
+            })), [])
+          })))
+        }))
+        policy_settings = optional(object({
+          enabled_state                              = optional(string, "Enabled")
+          mode                                       = optional(string, "Prevention")
+          request_body_check                         = optional(string)
+          custom_block_response_status_code          = optional(number)
+          custom_block_response_body                 = optional(string)
+          redirect_url                               = optional(string)
+          captcha_expiration_in_minutes              = optional(number)
+          javascript_challenge_expiration_in_minutes = optional(number)
+          log_scrubbing = optional(object({
+            state = optional(string, "Enabled")
+            scrubbing_rules = optional(list(object({
+              match_variable          = string
+              selector_match_operator = string
+              selector                = optional(string)
+              state                   = optional(string, "Enabled")
+            })), [])
+          }))
+        }))
+      }))
+    }))
+  }))
+```
+
+Default: `{}`
+
 ### <a name="input_tags"></a> [tags](#input\_tags)
 
 Description: (Optional) Tags of the resource.
@@ -269,17 +573,184 @@ Type: `map(string)`
 
 Default: `null`
 
+### <a name="input_target_groups"></a> [target\_groups](#input\_target\_groups)
+
+Description: Map of target groups to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name = string
+    target_endpoints = list(object({
+      target_fqdn = string
+      ports       = list(number)
+    }))
+  }))
+```
+
+Default: `{}`
+
+### <a name="input_tunnel_policies"></a> [tunnel\_policies](#input\_tunnel\_policies)
+
+Description: Map of tunnel policies to create in the CDN profile.
+
+Type:
+
+```hcl
+map(object({
+    name        = string
+    tunnel_type = optional(string, "HttpConnect")
+    domains = optional(list(object({
+      id = string
+    })), [])
+    target_groups = optional(list(object({
+      id = string
+    })), [])
+  }))
+```
+
+Default: `{}`
+
 ## Outputs
 
 The following outputs are exported:
 
-### <a name="output_private_endpoints"></a> [private\_endpoints](#output\_private\_endpoints)
+### <a name="output_afd_endpoint_host_names"></a> [afd\_endpoint\_host\_names](#output\_afd\_endpoint\_host\_names)
 
-Description:   A map of the private endpoints created.
+Description: Map of AFD endpoint names to their host names.
+
+### <a name="output_afd_endpoint_ids"></a> [afd\_endpoint\_ids](#output\_afd\_endpoint\_ids)
+
+Description: Map of AFD endpoint names to their resource IDs.
+
+### <a name="output_afd_endpoints"></a> [afd\_endpoints](#output\_afd\_endpoints)
+
+Description: Map of AFD endpoint names to their module outputs.
+
+### <a name="output_custom_domain_ids"></a> [custom\_domain\_ids](#output\_custom\_domain\_ids)
+
+Description: Map of custom domain names to their resource IDs.
+
+### <a name="output_custom_domains"></a> [custom\_domains](#output\_custom\_domains)
+
+Description: Map of custom domain names to their module outputs.
+
+### <a name="output_id"></a> [id](#output\_id)
+
+Description: The ID of the CDN profile.
+
+### <a name="output_location"></a> [location](#output\_location)
+
+Description: The location of the CDN profile.
+
+### <a name="output_name"></a> [name](#output\_name)
+
+Description: The name of the CDN profile.
+
+### <a name="output_origin_group_ids"></a> [origin\_group\_ids](#output\_origin\_group\_ids)
+
+Description: Map of origin group names to their resource IDs.
+
+### <a name="output_origin_groups"></a> [origin\_groups](#output\_origin\_groups)
+
+Description: Map of origin group names to their module outputs.
+
+### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
+
+Description: The Azure Resource ID of the CDN profile.
+
+### <a name="output_rule_set_ids"></a> [rule\_set\_ids](#output\_rule\_set\_ids)
+
+Description: Map of rule set names to their resource IDs.
+
+### <a name="output_rule_sets"></a> [rule\_sets](#output\_rule\_sets)
+
+Description: Map of rule set names to their module outputs.
+
+### <a name="output_secret_ids"></a> [secret\_ids](#output\_secret\_ids)
+
+Description: Map of secret names to their resource IDs.
+
+### <a name="output_secrets"></a> [secrets](#output\_secrets)
+
+Description: Map of secret names to their module outputs.
+
+### <a name="output_security_policies"></a> [security\_policies](#output\_security\_policies)
+
+Description: Map of security policy names to their module outputs.
+
+### <a name="output_security_policy_ids"></a> [security\_policy\_ids](#output\_security\_policy\_ids)
+
+Description: Map of security policy names to their resource IDs.
+
+### <a name="output_target_group_ids"></a> [target\_group\_ids](#output\_target\_group\_ids)
+
+Description: Map of target group names to their resource IDs.
+
+### <a name="output_target_groups"></a> [target\_groups](#output\_target\_groups)
+
+Description: Map of target group names to their module outputs.
+
+### <a name="output_tunnel_policies"></a> [tunnel\_policies](#output\_tunnel\_policies)
+
+Description: Map of tunnel policy names to their module outputs.
+
+### <a name="output_tunnel_policy_ids"></a> [tunnel\_policy\_ids](#output\_tunnel\_policy\_ids)
+
+Description: Map of tunnel policy names to their resource IDs.
 
 ## Modules
 
-No modules.
+The following Modules are called:
+
+### <a name="module_afd_endpoint"></a> [afd\_endpoint](#module\_afd\_endpoint)
+
+Source: ./modules/afd-endpoint
+
+Version:
+
+### <a name="module_custom_domain"></a> [custom\_domain](#module\_custom\_domain)
+
+Source: ./modules/custom-domain
+
+Version:
+
+### <a name="module_origin_group"></a> [origin\_group](#module\_origin\_group)
+
+Source: ./modules/origin-group
+
+Version:
+
+### <a name="module_rule_set"></a> [rule\_set](#module\_rule\_set)
+
+Source: ./modules/rule-set
+
+Version:
+
+### <a name="module_secret"></a> [secret](#module\_secret)
+
+Source: ./modules/secret
+
+Version:
+
+### <a name="module_security_policy"></a> [security\_policy](#module\_security\_policy)
+
+Source: ./modules/security-policy
+
+Version:
+
+### <a name="module_target_group"></a> [target\_group](#module\_target\_group)
+
+Source: ./modules/target-groups
+
+Version:
+
+### <a name="module_tunnel_policy"></a> [tunnel\_policy](#module\_tunnel\_policy)
+
+Source: ./modules/tunnel-policies
+
+Version:
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Data Collection

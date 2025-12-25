@@ -6,7 +6,7 @@ This deploys the module in its simplest form.
 
 ```hcl
 terraform {
-  required_version = "~> 1.5"
+  required_version = "~> 1.10"
 
   required_providers {
     azurerm = {
@@ -56,18 +56,28 @@ resource "azurerm_resource_group" "this" {
 }
 
 # This is the module call
-# Do not specify location here due to the randomization above.
-# Leaving location as `null` will cause the module to use the resource group location
-# with a data source.
+# Using only defaults - deploys the module with the minimum set of required parameters.
 module "test" {
   source = "../../"
 
-  # source             = "Azure/avm-<res/ptn>-<name>/azurerm"
-  # ...
-  location            = azurerm_resource_group.this.location
-  name                = "TODO" # TODO update with module.naming.<RESOURCE_TYPE>.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry # see variables.tf
+  # source             = "Azure/avm-res-cdn-profile/azurerm"
+  # version            = "~> 0.1.0"
+
+  name              = module.naming.cdn_profile.name_unique
+  location          = "global"
+  resource_group_id = azurerm_resource_group.this.id
+  sku_name          = "Standard_AzureFrontDoor"
+  enable_telemetry  = var.enable_telemetry
+
+  # All submodule variables default to empty maps {}
+  # secrets            = {}
+  # custom_domains     = {}
+  # origin_groups      = {}
+  # rule_sets          = {}
+  # afd_endpoints      = {}
+  # security_policies  = {}
+  # target_groups      = {}
+  # tunnel_policies    = {}
 }
 ```
 
@@ -76,7 +86,7 @@ module "test" {
 
 The following requirements are needed by this module:
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.5)
+- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.10)
 
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
 

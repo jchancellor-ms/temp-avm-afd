@@ -1,30 +1,185 @@
-# TODO: Replace this dummy resource azurerm_resource_group.TODO with your module resource
-resource "azurerm_resource_group" "TODO" {
-  location = var.location
-  name     = var.name # calling code must supply the name
-  tags     = var.tags
+locals {
+  identity = var.managed_identities != null ? {
+    type = var.managed_identities.system_assigned && length(var.managed_identities.user_assigned_resource_ids) > 0 ? "SystemAssigned,UserAssigned" : (
+      var.managed_identities.system_assigned ? "SystemAssigned" : (
+        length(var.managed_identities.user_assigned_resource_ids) > 0 ? "UserAssigned" : "None"
+      )
+    )
+    identity_ids = length(var.managed_identities.user_assigned_resource_ids) > 0 ? var.managed_identities.user_assigned_resource_ids : null
+  } : null
+
+  profile_properties = merge(
+    var.origin_response_timeout_seconds != null ? { originResponseTimeoutSeconds = var.origin_response_timeout_seconds } : {},
+    var.log_scrubbing != null ? {
+      logScrubbing = merge(
+        var.log_scrubbing.state != null ? { state = var.log_scrubbing.state } : {},
+        length(var.log_scrubbing.scrubbing_rules) > 0 ? {
+          scrubbingRules = [
+            for rule in var.log_scrubbing.scrubbing_rules : merge(
+              { matchVariable = rule.match_variable },
+              { selectorMatchOperator = rule.selector_match_operator },
+              rule.selector != null ? { selector = rule.selector } : {},
+              rule.state != null ? { state = rule.state } : {}
+            )
+          ]
+        } : {}
+      )
+    } : {}
+  )
 }
 
-# required AVM resources interfaces
-resource "azurerm_management_lock" "this" {
-  count = var.lock != null ? 1 : 0
+resource "azapi_resource" "profile" {
+  type      = "Microsoft.Cdn/profiles@2025-09-01-preview"
+  name      = var.name
+  parent_id = var.resource_group_id
+  location  = var.location
 
-  lock_level = var.lock.kind
-  name       = coalesce(var.lock.name, "lock-${var.lock.kind}")
-  scope      = azurerm_resource_group.TODO.id # TODO: Replace with your azurerm resource name
-  notes      = var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources."
+  dynamic "identity" {
+    for_each = local.identity != null ? [local.identity] : []
+    content {
+      type         = identity.value.type
+      identity_ids = identity.value.identity_ids
+    }
+  }
+
+  body = {
+    sku = {
+      name = var.sku_name
+    }
+    properties = local.profile_properties
+  }
+
+  tags           = var.tags
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
 
-resource "azurerm_role_assignment" "this" {
-  for_each = var.role_assignments
+# Secrets
+module "secret" {
+  source   = "./modules/secret"
+  for_each = var.secrets
 
-  principal_id                           = each.value.principal_id
-  scope                                  = azurerm_resource_group.TODO.id # TODO: Replace this dummy resource azurerm_resource_group.TODO with your module resource
-  condition                              = each.value.condition
-  condition_version                      = each.value.condition_version
-  delegated_managed_identity_resource_id = each.value.delegated_managed_identity_resource_id
-  principal_type                         = each.value.principal_type
-  role_definition_id                     = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? each.value.role_definition_id_or_name : null
-  role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
-  skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
+  name                      = each.value.name
+  profile_id                = azapi_resource.profile.id
+  type                      = each.value.type
+  secret_source_resource_id = each.value.secret_source_resource_id
+  secret_version            = each.value.secret_version
+  use_latest_version        = each.value.use_latest_version
+  subject_alternative_names = each.value.subject_alternative_names
+  key_id                    = each.value.key_id
+}
+
+# Custom Domains
+module "custom_domain" {
+  source   = "./modules/custom-domain"
+  for_each = var.custom_domains
+
+  name                                    = each.value.name
+  profile_name                            = azapi_resource.profile.name
+  profile_id                              = azapi_resource.profile.id
+  host_name                               = each.value.host_name
+  azure_dns_zone_id                       = each.value.azure_dns_zone_id
+  extended_properties                     = each.value.extended_properties
+  pre_validated_custom_domain_resource_id = each.value.pre_validated_custom_domain_resource_id
+  tls_settings                            = each.value.tls_settings
+  mtls_settings                           = each.value.mtls_settings
+
+  depends_on = [module.secret]
+}
+
+# Origin Groups
+module "origin_group" {
+  source   = "./modules/origin-group"
+  for_each = var.origin_groups
+
+  name                                                           = each.value.name
+  profile_name                                                   = azapi_resource.profile.name
+  profile_id                                                     = azapi_resource.profile.id
+  load_balancing_settings                                        = each.value.load_balancing_settings
+  health_probe_settings                                          = each.value.health_probe_settings
+  session_affinity_state                                         = each.value.session_affinity_state
+  traffic_restoration_time_to_healed_or_new_endpoints_in_minutes = each.value.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes
+  authentication                                                 = each.value.authentication
+  origins                                                        = each.value.origins
+}
+
+# Rule Sets
+module "rule_set" {
+  source   = "./modules/rule-set"
+  for_each = var.rule_sets
+
+  name       = each.value.name
+  profile_id = azapi_resource.profile.id
+  rules      = each.value.rules
+
+  depends_on = [module.origin_group]
+}
+
+# AFD Endpoints
+module "afd_endpoint" {
+  source   = "./modules/afd-endpoint"
+  for_each = var.afd_endpoints
+
+  name                                   = each.value.name
+  profile_name                           = azapi_resource.profile.name
+  profile_id                             = azapi_resource.profile.id
+  location                               = var.location
+  auto_generated_domain_name_label_scope = each.value.auto_generated_domain_name_label_scope
+  enabled_state                          = each.value.enabled_state
+  enforce_mtls                           = each.value.enforce_mtls
+  routes                                 = each.value.routes
+  tags                                   = each.value.tags
+
+  depends_on = [
+    module.origin_group,
+    module.custom_domain,
+    module.rule_set
+  ]
+}
+
+# Security Policies
+module "security_policy" {
+  source   = "./modules/security-policy"
+  for_each = var.security_policies
+
+  name                   = each.value.name
+  profile_id             = azapi_resource.profile.id
+  type                   = each.value.type
+  waf_policy_resource_id = each.value.waf_policy_resource_id
+  associations           = each.value.associations
+  embedded_waf_policy    = each.value.embedded_waf_policy
+
+  depends_on = [
+    module.afd_endpoint,
+    module.custom_domain
+  ]
+}
+
+# Target Groups
+module "target_group" {
+  source   = "./modules/target-groups"
+  for_each = var.target_groups
+
+  name             = each.value.name
+  profile_id       = azapi_resource.profile.id
+  target_endpoints = each.value.target_endpoints
+}
+
+# Tunnel Policies
+module "tunnel_policy" {
+  source   = "./modules/tunnel-policies"
+  for_each = var.tunnel_policies
+
+  name          = each.value.name
+  profile_id    = azapi_resource.profile.id
+  tunnel_type   = each.value.tunnel_type
+  domains       = each.value.domains
+  target_groups = each.value.target_groups
+
+  depends_on = [
+    module.custom_domain,
+    module.target_group
+  ]
 }
