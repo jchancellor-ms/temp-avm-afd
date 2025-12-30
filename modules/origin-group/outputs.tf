@@ -8,9 +8,9 @@ output "name" {
   value       = azapi_resource.origin_group.name
 }
 
-output "resource_id" {
-  description = "The resource ID of the origin group."
-  value       = azapi_resource.origin_group.id
+output "origin_ids" {
+  description = "The resource IDs of the origins."
+  value       = { for key, origin in module.origin : key => origin.id }
 }
 
 output "origins" {
@@ -23,7 +23,7 @@ output "origins" {
   }
 }
 
-output "origin_ids" {
-  description = "The resource IDs of the origins."
-  value       = { for key, origin in module.origin : key => origin.id }
+output "resource_id" {
+  description = "The resource ID of the origin group."
+  value       = azapi_resource.origin_group.id
 }

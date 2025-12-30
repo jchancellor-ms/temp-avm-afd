@@ -65,15 +65,15 @@ Type:
 ```hcl
 map(object({
     name                                   = string
-    auto_generated_domain_name_label_scope = optional(string)
+    auto_generated_domain_name_label_scope = optional(string, "TenantReuse")
     enabled_state                          = optional(string, "Enabled")
-    enforce_mtls                           = optional(bool, false)
-    routes = optional(list(object({
+    enforce_mtls                           = optional(string, "Disabled")
+    routes = optional(map(object({
       name                   = string
-      custom_domains         = optional(list(object({ id = string })), [])
+      custom_domain_ids      = optional(list(string), [])
       origin_group_id        = string
       origin_path            = optional(string)
-      rule_sets              = optional(list(object({ id = string })), [])
+      rule_set_ids           = optional(list(string), [])
       supported_protocols    = optional(list(string), ["Http", "Https"])
       patterns_to_match      = optional(list(string), ["/*"])
       forwarding_protocol    = optional(string, "MatchRequest")
@@ -91,7 +91,7 @@ map(object({
         cache_behavior = optional(string)
         cache_duration = optional(string)
       }))
-    })), [])
+    })), {})
     tags = optional(map(string))
   }))
 ```
@@ -112,11 +112,14 @@ map(object({
     extended_properties                     = optional(map(string))
     pre_validated_custom_domain_resource_id = optional(string)
     tls_settings = optional(object({
-      certificate_type            = string
-      minimum_tls_version         = optional(string, "TLS12")
-      secret_name                 = optional(string)
-      cipher_suite_set_type       = optional(string)
-      customized_cipher_suite_set = optional(list(string))
+      certificate_type      = string
+      minimum_tls_version   = optional(string, "TLS12")
+      secret_name           = optional(string)
+      cipher_suite_set_type = optional(string)
+      customized_cipher_suite_set = optional(object({
+        cipher_suite_set_for_tls12 = optional(list(string))
+        cipher_suite_set_for_tls13 = optional(list(string))
+      }))
     }))
     mtls_settings = optional(object({
       scenario                          = string
@@ -290,7 +293,7 @@ map(object({
         resource_id = string
       }))
     }))
-    origins = list(object({
+    origins = map(object({
       name                           = string
       host_name                      = string
       http_port                      = optional(number, 80)
@@ -432,13 +435,66 @@ Type:
 ```hcl
 map(object({
     name = string
-    rules = optional(list(object({
-      name                      = string
-      order                     = number
-      actions                   = optional(list(map(any)), [])
-      conditions                = optional(list(map(any)), [])
+    rules = optional(map(object({
+      name  = string
+      order = number
+      actions = optional(list(object({
+        name = string
+        parameters = optional(object({
+          # CacheExpiration action parameters
+          cacheBehavior = optional(string)
+          cacheDuration = optional(string)
+          cacheType     = optional(string)
+          # CacheKeyQueryString action parameters
+          queryParameters     = optional(string)
+          queryStringBehavior = optional(string)
+          # Header action parameters
+          headerAction = optional(string)
+          headerName   = optional(string)
+          value        = optional(string)
+          # OriginGroupOverride action parameters
+          originGroup = optional(object({
+            id = optional(string)
+          }))
+          # RouteConfigurationOverride action parameters
+          cacheConfiguration  = optional(any)
+          originGroupOverride = optional(any)
+          # UrlRedirect action parameters
+          customFragment      = optional(string)
+          customHostname      = optional(string)
+          customPath          = optional(string)
+          customQueryString   = optional(string)
+          destinationProtocol = optional(string)
+          redirectType        = optional(string)
+          # UrlRewrite action parameters
+          destination           = optional(string)
+          preserveUnmatchedPath = optional(bool)
+          sourcePattern         = optional(string)
+          # UrlSigning action parameters
+          algorithm = optional(string)
+          parameterNameOverride = optional(list(object({
+            paramIndicator = optional(string)
+            paramName      = optional(string)
+          })))
+          # Common parameter
+          typeName = optional(string)
+        }))
+      })), [])
+      conditions = optional(list(object({
+        name = string
+        parameters = optional(object({
+          # Match condition parameters (common to most conditions)
+          matchValues     = optional(list(string))
+          negateCondition = optional(bool)
+          operator        = optional(string)
+          selector        = optional(string)
+          transforms      = optional(list(string))
+          # Common parameter
+          typeName = optional(string)
+        }))
+      })), [])
       match_processing_behavior = optional(string, "Continue")
-    })), [])
+    })), {})
   }))
 ```
 

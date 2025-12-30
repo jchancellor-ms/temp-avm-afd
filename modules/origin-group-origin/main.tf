@@ -1,17 +1,8 @@
-terraform {
-  required_version = ">= 1.12.0"
-  required_providers {
-    azapi = {
-      source  = "Azure/azapi"
-      version = "~> 2.0"
-    }
-  }
-}
-
 locals {
   origin_properties = merge(
     {
       hostName                    = var.host_name
+      originHostHeader            = coalesce(var.origin_host_header, var.host_name)
       enabledState                = var.enabled_state
       enforceCertificateNameCheck = var.enforce_certificate_name_check
       httpPort                    = var.http_port
@@ -23,9 +14,6 @@ locals {
       azureOrigin = {
         id = var.azure_origin_id
       }
-    } : {},
-    var.origin_host_header != null ? {
-      originHostHeader = var.origin_host_header
     } : {},
     var.origin_capacity_resource != null ? {
       originCapacityResource = merge(
@@ -65,10 +53,9 @@ locals {
 
 # Origin Resource
 resource "azapi_resource" "origin" {
-  type      = "Microsoft.Cdn/profiles/originGroups/origins@2025-09-01-preview"
   name      = var.name
   parent_id = var.origin_group_id
-
+  type      = "Microsoft.Cdn/profiles/originGroups/origins@2025-09-01-preview"
   body = {
     properties = local.origin_properties
   }

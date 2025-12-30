@@ -15,10 +15,63 @@ variable "profile_id" {
 
 variable "rules" {
   type = map(object({
-    name                      = string
-    order                     = number
-    actions                   = optional(list(map(any)), [])
-    conditions                = optional(list(map(any)), [])
+    name  = string
+    order = number
+    actions = optional(list(object({
+      name = string
+      parameters = optional(object({
+        # CacheExpiration action parameters
+        cacheBehavior = optional(string)
+        cacheDuration = optional(string)
+        cacheType     = optional(string)
+        # CacheKeyQueryString action parameters
+        queryParameters     = optional(string)
+        queryStringBehavior = optional(string)
+        # Header action parameters
+        headerAction = optional(string)
+        headerName   = optional(string)
+        value        = optional(string)
+        # OriginGroupOverride action parameters
+        originGroup = optional(object({
+          id = optional(string)
+        }))
+        # RouteConfigurationOverride action parameters
+        cacheConfiguration  = optional(any)
+        originGroupOverride = optional(any)
+        # UrlRedirect action parameters
+        customFragment      = optional(string)
+        customHostname      = optional(string)
+        customPath          = optional(string)
+        customQueryString   = optional(string)
+        destinationProtocol = optional(string)
+        redirectType        = optional(string)
+        # UrlRewrite action parameters
+        destination           = optional(string)
+        preserveUnmatchedPath = optional(bool)
+        sourcePattern         = optional(string)
+        # UrlSigning action parameters
+        algorithm = optional(string)
+        parameterNameOverride = optional(list(object({
+          paramIndicator = optional(string)
+          paramName      = optional(string)
+        })))
+        # Common parameter
+        typeName = optional(string)
+      }))
+    })), [])
+    conditions = optional(list(object({
+      name = string
+      parameters = optional(object({
+        # Match condition parameters (common to most conditions)
+        matchValues     = optional(list(string))
+        negateCondition = optional(bool)
+        operator        = optional(string)
+        selector        = optional(string)
+        transforms      = optional(list(string))
+        # Common parameter
+        typeName = optional(string)
+      }))
+    })), [])
     match_processing_behavior = optional(string, "Continue")
   }))
   default     = {}

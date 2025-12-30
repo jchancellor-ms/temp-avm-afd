@@ -53,22 +53,9 @@ resource "azurerm_resource_group" "this" {
 module "test" {
   source = "../../"
 
-  # source             = "Azure/avm-res-cdn-profile/azurerm"
-  # version            = "~> 0.1.0"
-
   name              = module.naming.cdn_profile.name_unique
-  location          = "global"
   resource_group_id = azurerm_resource_group.this.id
   sku_name          = "Standard_AzureFrontDoor"
   enable_telemetry  = var.enable_telemetry
-
-  # All submodule variables default to empty maps {}
-  # secrets            = {}
-  # custom_domains     = {}
-  # origin_groups      = {}
-  # rule_sets          = {}
-  # afd_endpoints      = {}
-  # security_policies  = {}
-  # target_groups      = {}
-  # tunnel_policies    = {}
+  location          = "global"
 }
