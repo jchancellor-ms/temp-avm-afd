@@ -78,11 +78,11 @@ resource "azurerm_eventhub_namespace" "this" {
 }
 
 resource "azurerm_eventhub" "this" {
+  message_retention   = 1
   name                = "${module.naming.eventhub.name_unique}waf"
+  partition_count     = 2
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
-  partition_count     = 2
-  message_retention   = 1
 }
 
 resource "azurerm_eventhub_namespace_authorization_rule" "this" {
@@ -90,8 +90,8 @@ resource "azurerm_eventhub_namespace_authorization_rule" "this" {
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
   listen              = true
-  send                = true
   manage              = true
+  send                = true
 }
 
 # WAF-aligned Premium AFD
@@ -99,36 +99,47 @@ resource "azurerm_eventhub_namespace_authorization_rule" "this" {
 module "test" {
   source = "../../"
 
-  # source             = "Azure/avm-res-cdn-profile/azurerm"
-  # version            = "~> 0.1.0"
-
-  name                            = "${module.naming.cdn_profile.name_unique}waf"
-  location                        = "global"
-  resource_group_id               = azurerm_resource_group.this.id
-  sku_name                        = "Premium_AzureFrontDoor" # WAF: Premium SKU for advanced security features
-  origin_response_timeout_seconds = 60                       # WAF: Reasonable timeout for reliability
-  enable_telemetry                = var.enable_telemetry
-
-  # WAF: Reliability - Enable managed identities for secure access
-  managed_identities = {
-    system_assigned            = true
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+  name              = "${module.naming.cdn_profile.name_unique}waf"
+  resource_group_id = azurerm_resource_group.this.id
+  sku_name          = "Premium_AzureFrontDoor" # WAF: Premium SKU for advanced security features
+  # WAF: Performance & Reliability - Optimized AFD endpoints
+  afd_endpoints = {
+    "api-endpoint" = {
+      name                                   = "${module.naming.cdn_profile.name_unique}wafapiep"
+      auto_generated_domain_name_label_scope = "TenantReuse" # WAF: Cost Optimization - Reuse domains
+      enabled_state                          = "Enabled"
+      routes = {
+        "api-route" = {
+          name            = "${module.naming.cdn_profile.name_unique}wafapiroute"
+          origin_group_id = "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}waf/origingroups/${module.naming.cdn_profile.name_unique}wafapiog"
+          custom_domain_ids = [
+            "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}waf/customdomains/${module.naming.cdn_profile.name_unique}wafapi"
+          ]
+          enabled_state          = "Enabled"
+          forwarding_protocol    = "HttpsOnly" # WAF: Security - HTTPS only for APIs
+          https_redirect         = "Enabled"
+          link_to_default_domain = "Disabled" # WAF: Security - Custom domain only for APIs
+          patterns_to_match      = ["/api/*", "/v1/*", "/v2/*"]
+          supported_protocols    = ["Https"] # WAF: Security - HTTPS only
+          cache_configuration = {
+            query_string_caching_behavior = "IgnoreSpecifiedQueryStrings" # WAF: Performance - API-specific caching
+            query_parameters              = "timestamp,nonce"             # WAF: Performance - Ignore security parameters
+            compression_settings = {
+              content_types_to_compress = [
+                "application/json",
+                "application/xml",
+                "text/xml"
+              ]
+              is_compression_enabled = true # WAF: Performance - API response compression
+            }
+          }
+          rule_set_ids = [
+            "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}waf/rulesets/${replace(module.naming.cdn_profile.name_unique, "-", "")}wafsecrules"
+          ]
+        }
+      }
+    }
   }
-
-  # WAF: Cost Optimization & Operational Excellence - Comprehensive tagging
-  tags = {
-    Environment        = "Production"
-    Application        = "CDN-WAF-Aligned"
-    CostCenter         = "IT-Infrastructure"
-    Owner              = "Platform-Team"
-    BusinessUnit       = "Digital-Services"
-    Criticality        = "High"
-    DataClassification = "Internal"
-    BackupRequired     = "Yes"
-    MonitoringRequired = "Yes"
-    "WAF-Pillar"       = "All"
-  }
-
   # WAF: Security - Custom domains with strong TLS configuration
   custom_domains = {
     "primary-domain" = {
@@ -147,14 +158,22 @@ module "test" {
         certificate_type      = "ManagedCertificate"
         minimum_tls_version   = "TLS13" # WAF: Security - Use latest TLS version
         cipher_suite_set_type = "Customized"
-        customized_cipher_suite_set = [
-          "TLS_AES_256_GCM_SHA384", # Strong TLS 1.3 cipher
-          "TLS_AES_128_GCM_SHA256"  # Performance balance
-        ]
+        customized_cipher_suite_set = {
+          cipher_suite_set_for_tls13 = [
+            "TLS_AES_256_GCM_SHA384", # Strong TLS 1.3 cipher
+            "TLS_AES_128_GCM_SHA256"  # Performance balance
+          ]
+        }
       }
     }
   }
-
+  enable_telemetry = var.enable_telemetry
+  location         = "global"
+  # WAF: Reliability - Enable managed identities for secure access
+  managed_identities = {
+    system_assigned            = true
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+  }
   # WAF: Reliability & Performance - Multi-origin setup with health probes
   origin_groups = {
     "api-origin-group" = {
@@ -208,7 +227,7 @@ module "test" {
       }
     }
   }
-
+  origin_response_timeout_seconds = 60 # WAF: Reasonable timeout for reliability
   # WAF: Security & Performance - Comprehensive routing rules
   rule_sets = {
     "security-rules" = {
@@ -239,7 +258,7 @@ module "test" {
               }
             }
           ]
-        }
+        },
         "security-headers" = {
           name                      = "SecurityHeadersRule"
           order                     = 2
@@ -302,7 +321,7 @@ module "test" {
               }
             }
           ]
-        }
+        },
         "api-rate-limit" = {
           name                      = "APIRateLimitRule"
           order                     = 3
@@ -334,48 +353,18 @@ module "test" {
       }
     }
   }
-
-  # WAF: Performance & Reliability - Optimized AFD endpoints
-  afd_endpoints = {
-    "api-endpoint" = {
-      name                                   = "${module.naming.cdn_profile.name_unique}wafapiep"
-      auto_generated_domain_name_label_scope = "TenantReuse" # WAF: Cost Optimization - Reuse domains
-      enabled_state                          = "Enabled"
-      routes = {
-        "api-route" = {
-          name            = "${module.naming.cdn_profile.name_unique}wafapiroute"
-          origin_group_id = module.test.origin_group_ids["api-origin-group"]
-          custom_domains = [
-            {
-              id = module.test.custom_domain_ids["api-domain"]
-            }
-          ]
-          enabled_state          = "Enabled"
-          forwarding_protocol    = "HttpsOnly" # WAF: Security - HTTPS only for APIs
-          https_redirect         = "Enabled"
-          link_to_default_domain = "Disabled" # WAF: Security - Custom domain only for APIs
-          patterns_to_match      = ["/api/*", "/v1/*", "/v2/*"]
-          supported_protocols    = ["Https"] # WAF: Security - HTTPS only
-          cache_configuration = {
-            query_string_caching_behavior = "IgnoreSpecifiedQueryStrings" # WAF: Performance - API-specific caching
-            query_parameters              = "timestamp,nonce"             # WAF: Performance - Ignore security parameters
-            compression_settings = {
-              content_types_to_compress = [
-                "application/json",
-                "application/xml",
-                "text/xml"
-              ]
-              is_compression_enabled = true # WAF: Performance - API response compression
-            }
-          }
-          rule_sets = [
-            {
-              id = module.test.rule_set_ids["security-rules"]
-            }
-          ]
-        }
-      }
-    }
+  # WAF: Cost Optimization & Operational Excellence - Comprehensive tagging
+  tags = {
+    Environment        = "Production"
+    Application        = "CDN-WAF-Aligned"
+    CostCenter         = "IT-Infrastructure"
+    Owner              = "Platform-Team"
+    BusinessUnit       = "Digital-Services"
+    Criticality        = "High"
+    DataClassification = "Internal"
+    BackupRequired     = "Yes"
+    MonitoringRequired = "Yes"
+    "WAF-Pillar"       = "All"
   }
 
   depends_on = [

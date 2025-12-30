@@ -59,21 +59,33 @@ resource "azurerm_resource_group" "this" {
 module "test" {
   source = "../../"
 
-  # source             = "Azure/avm-res-cdn-profile/azurerm"
-  # version            = "~> 0.1.0"
-
-  name                            = "${module.naming.cdn_profile.name_unique}afd"
-  location                        = "global"
-  resource_group_id               = azurerm_resource_group.this.id
-  sku_name                        = "Standard_AzureFrontDoor"
-  origin_response_timeout_seconds = 60
-  enable_telemetry                = var.enable_telemetry
-
-  # Managed Identity
-  managed_identities = {
-    system_assigned = true
+  name              = "${module.naming.cdn_profile.name_unique}afd"
+  resource_group_id = azurerm_resource_group.this.id
+  sku_name          = "Standard_AzureFrontDoor"
+  # AFD Endpoints
+  afd_endpoints = {
+    "endpoint-01" = {
+      name = "${module.naming.cdn_profile.name_unique}afdendpoint"
+      routes = {
+        "route-01" = {
+          name            = "${module.naming.cdn_profile.name_unique}route"
+          origin_group_id = module.test.origin_group_ids["origin-group-01"]
+          custom_domains = [
+            {
+              id = module.test.custom_domain_ids["custom-domain-01"]
+            }
+          ]
+          rule_sets = [
+            {
+              id = module.test.rule_set_ids["ruleset-01"]
+            }
+          ]
+          patterns_to_match   = ["/*"]
+          supported_protocols = ["Http", "Https"]
+        }
+      }
+    }
   }
-
   # Custom Domains with different TLS configurations
   custom_domains = {
     "custom-domain-01" = {
@@ -102,16 +114,25 @@ module "test" {
         certificate_type      = "ManagedCertificate"
         minimum_tls_version   = "TLS12"
         cipher_suite_set_type = "Customized"
-        customized_cipher_suite_set = [
-          "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-          "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-          "TLS_AES_128_GCM_SHA256",
-          "TLS_AES_256_GCM_SHA384"
-        ]
+        customized_cipher_suite_set = {
+          cipher_suite_set_for_tls12 = [
+            "ECDHE_RSA_AES128_GCM_SHA256",
+            "ECDHE_RSA_AES256_GCM_SHA384"
+          ]
+          cipher_suite_set_for_tls13 = [
+            "TLS_AES_128_GCM_SHA256",
+            "TLS_AES_256_GCM_SHA384"
+          ]
+        }
       }
     }
   }
-
+  enable_telemetry = var.enable_telemetry
+  location         = "global"
+  # Managed Identity
+  managed_identities = {
+    system_assigned = true
+  }
   # Origin Groups
   origin_groups = {
     "origin-group-01" = {
@@ -129,7 +150,7 @@ module "test" {
       }
     }
   }
-
+  origin_response_timeout_seconds = 60
   # Rule Sets
   rule_sets = {
     "ruleset-01" = {
@@ -146,35 +167,10 @@ module "test" {
                 redirectType        = "PermanentRedirect"
                 destinationProtocol = "Https"
                 customPath          = "/test123"
-                customHostname      = "dev-etradefd.trade.azure.defra.cloud"
+                customHostname      = "dev-testfd.azure.test.org"
               }
             }
           ]
-        }
-      }
-    }
-  }
-
-  # AFD Endpoints
-  afd_endpoints = {
-    "endpoint-01" = {
-      name = "${module.naming.cdn_profile.name_unique}afdendpoint"
-      routes = {
-        "route-01" = {
-          name            = "${module.naming.cdn_profile.name_unique}route"
-          origin_group_id = module.test.origin_group_ids["origin-group-01"]
-          custom_domains = [
-            {
-              id = module.test.custom_domain_ids["custom-domain-01"]
-            }
-          ]
-          rule_sets = [
-            {
-              id = module.test.rule_set_ids["ruleset-01"]
-            }
-          ]
-          patterns_to_match   = ["/*"]
-          supported_protocols = ["Http", "Https"]
         }
       }
     }

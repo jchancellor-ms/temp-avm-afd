@@ -1,18 +1,3 @@
-variable "name" {
-  type        = string
-  description = "The name of the origin group."
-}
-
-variable "profile_name" {
-  type        = string
-  description = "The name of the parent CDN profile."
-}
-
-variable "profile_id" {
-  type        = string
-  description = "The resource ID of the parent CDN profile."
-}
-
 variable "load_balancing_settings" {
   type = object({
     additional_latency_in_milliseconds = number
@@ -22,52 +7,19 @@ variable "load_balancing_settings" {
   description = "Load balancing settings for a backend pool."
 }
 
-variable "health_probe_settings" {
-  type = object({
-    probe_interval_in_seconds = optional(number)
-    probe_path                = optional(string)
-    probe_protocol            = optional(string)
-    probe_request_type        = optional(string)
-  })
-  description = "Health probe settings to the origin that is used to determine the health of the origin."
-  default     = null
-
-  validation {
-    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_interval_in_seconds == null || (var.health_probe_settings.probe_interval_in_seconds >= 1 && var.health_probe_settings.probe_interval_in_seconds <= 255)
-    error_message = "probe_interval_in_seconds must be between 1 and 255."
-  }
-
-  validation {
-    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_protocol == null || can(regex("^(Grpc|Http|Https|NotSet)$", var.health_probe_settings.probe_protocol))
-    error_message = "probe_protocol must be one of: Grpc, Http, Https, NotSet."
-  }
-
-  validation {
-    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_request_type == null || can(regex("^(GET|HEAD|NotSet)$", var.health_probe_settings.probe_request_type))
-    error_message = "probe_request_type must be one of: GET, HEAD, NotSet."
-  }
-}
-
-variable "session_affinity_state" {
+variable "name" {
   type        = string
-  description = "Whether to allow session affinity on this host."
-  default     = "Disabled"
-
-  validation {
-    condition     = can(regex("^(Enabled|Disabled)$", var.session_affinity_state))
-    error_message = "session_affinity_state must be either 'Enabled' or 'Disabled'."
-  }
+  description = "The name of the origin group."
 }
 
-variable "traffic_restoration_time_to_healed_or_new_endpoints_in_minutes" {
-  type        = number
-  description = "Time in minutes to shift the traffic to the endpoint gradually when an unhealthy endpoint comes healthy or a new endpoint is added."
-  default     = 10
+variable "profile_id" {
+  type        = string
+  description = "The resource ID of the parent CDN profile."
+}
 
-  validation {
-    condition     = var.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes >= 0 && var.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes <= 50
-    error_message = "traffic_restoration_time_to_healed_or_new_endpoints_in_minutes must be between 0 and 50."
-  }
+variable "profile_name" {
+  type        = string
+  description = "The name of the parent CDN profile."
 }
 
 variable "authentication" {
@@ -76,12 +28,36 @@ variable "authentication" {
     type                      = string
     user_assigned_identity_id = optional(string)
   })
-  description = "Authentication settings for origin in origin group."
   default     = null
+  description = "Authentication settings for origin in origin group."
 
   validation {
     condition     = var.authentication == null || can(regex("^(SystemAssignedIdentity|UserAssignedIdentity)$", var.authentication.type))
     error_message = "type must be either 'SystemAssignedIdentity' or 'UserAssignedIdentity'."
+  }
+}
+
+variable "health_probe_settings" {
+  type = object({
+    probe_interval_in_seconds = optional(number)
+    probe_path                = optional(string)
+    probe_protocol            = optional(string)
+    probe_request_type        = optional(string)
+  })
+  default     = null
+  description = "Health probe settings to the origin that is used to determine the health of the origin."
+
+  validation {
+    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_interval_in_seconds == null || (var.health_probe_settings.probe_interval_in_seconds >= 1 && var.health_probe_settings.probe_interval_in_seconds <= 255)
+    error_message = "probe_interval_in_seconds must be between 1 and 255."
+  }
+  validation {
+    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_protocol == null || can(regex("^(Grpc|Http|Https|NotSet)$", var.health_probe_settings.probe_protocol))
+    error_message = "probe_protocol must be one of: Grpc, Http, Https, NotSet."
+  }
+  validation {
+    condition     = var.health_probe_settings == null || var.health_probe_settings.probe_request_type == null || can(regex("^(GET|HEAD|NotSet)$", var.health_probe_settings.probe_request_type))
+    error_message = "probe_request_type must be one of: GET, HEAD, NotSet."
   }
 }
 
@@ -111,6 +87,28 @@ variable "origins" {
       status                = optional(string)
     }))
   }))
-  description = "A map of origins within the origin group."
   default     = {}
+  description = "A map of origins within the origin group."
+}
+
+variable "session_affinity_state" {
+  type        = string
+  default     = "Disabled"
+  description = "Whether to allow session affinity on this host."
+
+  validation {
+    condition     = can(regex("^(Enabled|Disabled)$", var.session_affinity_state))
+    error_message = "session_affinity_state must be either 'Enabled' or 'Disabled'."
+  }
+}
+
+variable "traffic_restoration_time_to_healed_or_new_endpoints_in_minutes" {
+  type        = number
+  default     = 10
+  description = "Time in minutes to shift the traffic to the endpoint gradually when an unhealthy endpoint comes healthy or a new endpoint is added."
+
+  validation {
+    condition     = var.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes >= 0 && var.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes <= 50
+    error_message = "traffic_restoration_time_to_healed_or_new_endpoints_in_minutes must be between 0 and 50."
+  }
 }

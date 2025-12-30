@@ -1,13 +1,12 @@
 locals {
   identity = var.managed_identities != null ? {
-    type = var.managed_identities.system_assigned && length(var.managed_identities.user_assigned_resource_ids) > 0 ? "SystemAssigned,UserAssigned" : (
+    type = var.managed_identities.system_assigned && length(var.managed_identities.user_assigned_resource_ids) > 0 ? "SystemAssigned, UserAssigned" : (
       var.managed_identities.system_assigned ? "SystemAssigned" : (
         length(var.managed_identities.user_assigned_resource_ids) > 0 ? "UserAssigned" : "None"
       )
     )
     identity_ids = length(var.managed_identities.user_assigned_resource_ids) > 0 ? var.managed_identities.user_assigned_resource_ids : null
   } : null
-
   profile_properties = merge(
     var.origin_response_timeout_seconds != null ? { originResponseTimeoutSeconds = var.origin_response_timeout_seconds } : {},
     var.log_scrubbing != null ? {
@@ -29,31 +28,30 @@ locals {
 }
 
 resource "azapi_resource" "profile" {
-  type      = "Microsoft.Cdn/profiles@2025-09-01-preview"
+  location  = var.location
   name      = var.name
   parent_id = var.resource_group_id
-  location  = var.location
-
-  dynamic "identity" {
-    for_each = local.identity != null ? [local.identity] : []
-    content {
-      type         = identity.value.type
-      identity_ids = identity.value.identity_ids
-    }
-  }
-
+  type      = "Microsoft.Cdn/profiles@2025-09-01-preview"
   body = {
     sku = {
       name = var.sku_name
     }
     properties = local.profile_properties
   }
-
-  tags           = var.tags
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  tags           = var.tags
   update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  dynamic "identity" {
+    for_each = local.identity != null ? [local.identity] : []
+
+    content {
+      type         = identity.value.type
+      identity_ids = identity.value.identity_ids
+    }
+  }
 }
 
 # Secrets
@@ -63,12 +61,12 @@ module "secret" {
 
   name                      = each.value.name
   profile_id                = azapi_resource.profile.id
-  type                      = each.value.type
+  key_id                    = each.value.key_id
   secret_source_resource_id = each.value.secret_source_resource_id
   secret_version            = each.value.secret_version
-  use_latest_version        = each.value.use_latest_version
   subject_alternative_names = each.value.subject_alternative_names
-  key_id                    = each.value.key_id
+  type                      = each.value.type
+  use_latest_version        = each.value.use_latest_version
 }
 
 # Custom Domains
@@ -76,15 +74,15 @@ module "custom_domain" {
   source   = "./modules/custom-domain"
   for_each = var.custom_domains
 
-  name                                    = each.value.name
-  profile_name                            = azapi_resource.profile.name
-  profile_id                              = azapi_resource.profile.id
   host_name                               = each.value.host_name
+  name                                    = each.value.name
+  profile_id                              = azapi_resource.profile.id
+  profile_name                            = azapi_resource.profile.name
   azure_dns_zone_id                       = each.value.azure_dns_zone_id
   extended_properties                     = each.value.extended_properties
+  mtls_settings                           = each.value.mtls_settings
   pre_validated_custom_domain_resource_id = each.value.pre_validated_custom_domain_resource_id
   tls_settings                            = each.value.tls_settings
-  mtls_settings                           = each.value.mtls_settings
 
   depends_on = [module.secret]
 }
@@ -94,15 +92,15 @@ module "origin_group" {
   source   = "./modules/origin-group"
   for_each = var.origin_groups
 
-  name                                                           = each.value.name
-  profile_name                                                   = azapi_resource.profile.name
-  profile_id                                                     = azapi_resource.profile.id
   load_balancing_settings                                        = each.value.load_balancing_settings
+  name                                                           = each.value.name
+  profile_id                                                     = azapi_resource.profile.id
+  profile_name                                                   = azapi_resource.profile.name
+  authentication                                                 = each.value.authentication
   health_probe_settings                                          = each.value.health_probe_settings
+  origins                                                        = each.value.origins
   session_affinity_state                                         = each.value.session_affinity_state
   traffic_restoration_time_to_healed_or_new_endpoints_in_minutes = each.value.traffic_restoration_time_to_healed_or_new_endpoints_in_minutes
-  authentication                                                 = each.value.authentication
-  origins                                                        = each.value.origins
 }
 
 # Rule Sets
@@ -123,12 +121,12 @@ module "afd_endpoint" {
   for_each = var.afd_endpoints
 
   name                                   = each.value.name
-  profile_name                           = azapi_resource.profile.name
   profile_id                             = azapi_resource.profile.id
-  location                               = var.location
+  profile_name                           = azapi_resource.profile.name
   auto_generated_domain_name_label_scope = each.value.auto_generated_domain_name_label_scope
   enabled_state                          = each.value.enabled_state
   enforce_mtls                           = each.value.enforce_mtls
+  location                               = var.location
   routes                                 = each.value.routes
   tags                                   = each.value.tags
 
@@ -144,12 +142,12 @@ module "security_policy" {
   source   = "./modules/security-policy"
   for_each = var.security_policies
 
+  associations           = each.value.associations
   name                   = each.value.name
   profile_id             = azapi_resource.profile.id
+  embedded_waf_policy    = each.value.embedded_waf_policy
   type                   = each.value.type
   waf_policy_resource_id = each.value.waf_policy_resource_id
-  associations           = each.value.associations
-  embedded_waf_policy    = each.value.embedded_waf_policy
 
   depends_on = [
     module.afd_endpoint,
@@ -174,9 +172,9 @@ module "tunnel_policy" {
 
   name          = each.value.name
   profile_id    = azapi_resource.profile.id
-  tunnel_type   = each.value.tunnel_type
   domains       = each.value.domains
   target_groups = each.value.target_groups
+  tunnel_type   = each.value.tunnel_type
 
   depends_on = [
     module.custom_domain,

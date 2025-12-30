@@ -9,11 +9,7 @@ This module creates Azure Front Door custom domain resource
 
 The following requirements are needed by this module:
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.12.0)
-
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.10)
-
-- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.0)
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.4)
 
@@ -80,10 +76,10 @@ Type:
 
 ```hcl
 object({
-    scenario = string
-    allowed_fqdns = optional(list(string))
+    scenario                     = string
+    allowed_fqdns                = optional(list(string))
     certificate_revocation_check = optional(string)
-    secret_ids = optional(list(string))
+    secret_ids                   = optional(list(string))
   })
 ```
 
@@ -105,14 +101,14 @@ Type:
 
 ```hcl
 object({
-    certificate_type = string
+    certificate_type      = string
     cipher_suite_set_type = optional(string)
     customized_cipher_suite_set = optional(object({
       cipher_suite_set_for_tls12 = optional(list(string))
       cipher_suite_set_for_tls13 = optional(list(string))
     }))
     minimum_tls_version = optional(string)
-    secret_id          = optional(string)
+    secret_id           = optional(string)
   })
 ```
 

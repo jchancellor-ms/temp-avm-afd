@@ -1,13 +1,3 @@
-terraform {
-  required_version = ">= 1.12.0"
-  required_providers {
-    azapi = {
-      source  = "Azure/azapi"
-      version = "~> 2.0"
-    }
-  }
-}
-
 locals {
   route_properties = merge(
     {
@@ -62,10 +52,9 @@ locals {
 
 # AFD Endpoint Route Resource
 resource "azapi_resource" "route" {
-  type      = "Microsoft.Cdn/profiles/afdEndpoints/routes@2025-09-01-preview"
   name      = var.name
   parent_id = var.afd_endpoint_id
-
+  type      = "Microsoft.Cdn/profiles/afdEndpoints/routes@2025-09-01-preview"
   body = {
     properties = local.route_properties
   }

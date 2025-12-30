@@ -9,11 +9,7 @@ This module creates Azure Front Door Origin Group Origins.
 
 The following requirements are needed by this module:
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.12.0)
-
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.10)
-
-- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.0)
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.4)
 
@@ -116,9 +112,9 @@ Type:
 
 ```hcl
 object({
-    enabled                        = string
-    origin_ingress_rate_threshold  = optional(number)
-    origin_request_rate_threshold  = optional(number)
+    enabled                       = string
+    origin_ingress_rate_threshold = optional(number)
+    origin_request_rate_threshold = optional(number)
     region                        = optional(string)
   })
 ```
@@ -149,11 +145,11 @@ Type:
 
 ```hcl
 object({
-    group_id             = string
-    private_link_id      = string
+    group_id              = string
+    private_link_id       = string
     private_link_location = string
-    request_message      = optional(string)
-    status               = optional(string)
+    request_message       = optional(string)
+    status                = optional(string)
   })
 ```
 

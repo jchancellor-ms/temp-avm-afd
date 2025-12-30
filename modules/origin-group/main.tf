@@ -1,13 +1,3 @@
-terraform {
-  required_version = ">= 1.12.0"
-  required_providers {
-    azapi = {
-      source  = "Azure/azapi"
-      version = "~> 2.0"
-    }
-  }
-}
-
 locals {
   origin_group_properties = merge(
     {
@@ -53,10 +43,9 @@ locals {
 
 # Origin Group Resource
 resource "azapi_resource" "origin_group" {
-  type      = "Microsoft.Cdn/profiles/originGroups@2025-09-01-preview"
   name      = var.name
   parent_id = var.profile_id
-
+  type      = "Microsoft.Cdn/profiles/originGroups@2025-09-01-preview"
   body = {
     properties = local.origin_group_properties
   }
@@ -64,25 +53,23 @@ resource "azapi_resource" "origin_group" {
 
 # Origins using the origin-group-origin submodule
 module "origin" {
-  source = "../origin-group-origin"
-
+  source   = "../origin-group-origin"
   for_each = var.origins
 
-  name              = each.value.name
-  profile_name      = var.profile_name
-  profile_id        = var.profile_id
-  origin_group_name = var.name
-  origin_group_id   = azapi_resource.origin_group.id
-  host_name         = each.value.host_name
-
+  host_name                      = each.value.host_name
+  name                           = each.value.name
+  origin_group_id                = azapi_resource.origin_group.id
+  origin_group_name              = var.name
+  profile_id                     = var.profile_id
+  profile_name                   = var.profile_name
   azure_origin_id                = each.value.azure_origin_id
   enabled_state                  = each.value.enabled_state != null ? each.value.enabled_state : "Enabled"
   enforce_certificate_name_check = each.value.enforce_certificate_name_check != null ? each.value.enforce_certificate_name_check : true
   http_port                      = each.value.http_port != null ? each.value.http_port : 80
   https_port                     = each.value.https_port != null ? each.value.https_port : 443
+  origin_capacity_resource       = each.value.origin_capacity_resource
   origin_host_header             = each.value.origin_host_header
   priority                       = each.value.priority != null ? each.value.priority : 1
-  weight                         = each.value.weight != null ? each.value.weight : 1000
-  origin_capacity_resource       = each.value.origin_capacity_resource
   shared_private_link_resource   = each.value.shared_private_link_resource
+  weight                         = each.value.weight != null ? each.value.weight : 1000
 }

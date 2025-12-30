@@ -3,32 +3,20 @@ variable "name" {
   description = "The name of the AFD Endpoint."
 }
 
-variable "profile_name" {
-  type        = string
-  description = "The name of the parent CDN profile."
-}
-
 variable "profile_id" {
   type        = string
   description = "The resource ID of the parent CDN profile."
 }
 
-variable "location" {
+variable "profile_name" {
   type        = string
-  description = "The location of the AFD Endpoint."
-  default     = "global"
-}
-
-variable "tags" {
-  type        = map(string)
-  description = "The tags of the AFD Endpoint."
-  default     = {}
+  description = "The name of the parent CDN profile."
 }
 
 variable "auto_generated_domain_name_label_scope" {
   type        = string
-  description = "Indicates the endpoint name reuse scope. The default value is TenantReuse."
   default     = "TenantReuse"
+  description = "Indicates the endpoint name reuse scope. The default value is TenantReuse."
 
   validation {
     condition     = can(regex("^(NoReuse|ResourceGroupReuse|SubscriptionReuse|TenantReuse)$", var.auto_generated_domain_name_label_scope))
@@ -38,8 +26,8 @@ variable "auto_generated_domain_name_label_scope" {
 
 variable "enabled_state" {
   type        = string
-  description = "Indicates whether the AFD Endpoint is enabled. The default value is Enabled."
   default     = "Enabled"
+  description = "Indicates whether the AFD Endpoint is enabled. The default value is Enabled."
 
   validation {
     condition     = can(regex("^(Enabled|Disabled)$", var.enabled_state))
@@ -49,13 +37,19 @@ variable "enabled_state" {
 
 variable "enforce_mtls" {
   type        = string
-  description = "Set to Disabled by default. If set to Enabled, only custom domains with mTLS enabled can be added to child Route resources."
   default     = "Disabled"
+  description = "Set to Disabled by default. If set to Enabled, only custom domains with mTLS enabled can be added to child Route resources."
 
   validation {
     condition     = can(regex("^(Enabled|Disabled)$", var.enforce_mtls))
     error_message = "enforce_mtls must be either 'Enabled' or 'Disabled'."
   }
+}
+
+variable "location" {
+  type        = string
+  default     = "global"
+  description = "The location of the AFD Endpoint."
 }
 
 variable "routes" {
@@ -81,6 +75,12 @@ variable "routes" {
     rule_set_ids           = optional(list(string))
     supported_protocols    = optional(list(string))
   }))
-  description = "A map of routes for this AFD Endpoint."
   default     = {}
+  description = "A map of routes for this AFD Endpoint."
+}
+
+variable "tags" {
+  type        = map(string)
+  default     = {}
+  description = "The tags of the AFD Endpoint."
 }

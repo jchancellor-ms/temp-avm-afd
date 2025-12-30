@@ -88,11 +88,11 @@ resource "azurerm_eventhub_namespace" "this" {
 }
 
 resource "azurerm_eventhub" "this" {
+  message_retention   = 1
   name                = module.naming.eventhub.name_unique
+  partition_count     = 2
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
-  partition_count     = 2
-  message_retention   = 1
 }
 
 resource "azurerm_eventhub_namespace_authorization_rule" "this" {
@@ -100,8 +100,8 @@ resource "azurerm_eventhub_namespace_authorization_rule" "this" {
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
   listen              = true
-  send                = true
   manage              = true
+  send                = true
 }
 
 # This is the module call - Using maximum parameter set
@@ -109,30 +109,53 @@ resource "azurerm_eventhub_namespace_authorization_rule" "this" {
 module "test" {
   source = "../../"
 
-  # source             = "Azure/avm-res-cdn-profile/azurerm"
-  # version            = "~> 0.1.0"
-
-  name                            = "${module.naming.cdn_profile.name_unique}max"
-  location                        = "global"
-  resource_group_id               = azurerm_resource_group.this.id
-  sku_name                        = "Premium_AzureFrontDoor"
-  origin_response_timeout_seconds = 240
-  enable_telemetry                = var.enable_telemetry
-
-  # Managed Identity - both system and user assigned
-  managed_identities = {
-    system_assigned            = true
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+  name              = "${module.naming.cdn_profile.name_unique}max"
+  resource_group_id = azurerm_resource_group.this.id
+  sku_name          = "Premium_AzureFrontDoor"
+  # AFD Endpoints with routes and cache configuration
+  afd_endpoints = {
+    "endpoint-01" = {
+      name          = "${module.naming.cdn_profile.name_unique}afdep"
+      enabled_state = "Enabled"
+      routes = {
+        "route-01" = {
+          name            = "${module.naming.cdn_profile.name_unique}route1"
+          origin_group_id = module.test.origin_group_ids["origin-group-01"]
+          custom_domains = [
+            {
+              id = module.test.custom_domain_ids["custom-domain-01"]
+            }
+          ]
+          enabled_state          = "Enabled"
+          forwarding_protocol    = "MatchRequest"
+          https_redirect         = "Enabled"
+          link_to_default_domain = "Enabled"
+          patterns_to_match      = ["/api/*", "/health"]
+          supported_protocols    = ["Http", "Https"]
+          cache_configuration = {
+            query_string_caching_behavior = "IncludeSpecifiedQueryStrings"
+            query_parameters              = "version,locale"
+            compression_settings = {
+              content_types_to_compress = [
+                "application/json",
+                "text/css",
+                "text/html"
+              ]
+              is_compression_enabled = true
+            }
+          }
+          rule_sets = [
+            {
+              id = module.test.rule_set_ids["ruleset-01"]
+            }
+          ]
+        }
+      }
+      tags = {
+        EndpointType = "AFD"
+      }
+    }
   }
-
-  # Tags
-  tags = {
-    Environment = "Test"
-    Application = "CDN"
-    CostCenter  = "12345"
-    Owner       = "TestTeam"
-  }
-
   # Custom Domains with different TLS configurations
   custom_domains = {
     "custom-domain-01" = {
@@ -159,14 +182,22 @@ module "test" {
         certificate_type      = "ManagedCertificate"
         minimum_tls_version   = "TLS13"
         cipher_suite_set_type = "Customized"
-        customized_cipher_suite_set = [
-          "TLS_AES_128_GCM_SHA256",
-          "TLS_AES_256_GCM_SHA384"
-        ]
+        customized_cipher_suite_set = {
+          cipher_suite_set_for_tls13 = [
+            "TLS_AES_128_GCM_SHA256",
+            "TLS_AES_256_GCM_SHA384"
+          ]
+        }
       }
     }
   }
-
+  enable_telemetry = var.enable_telemetry
+  location         = "global"
+  # Managed Identity - both system and user assigned
+  managed_identities = {
+    system_assigned            = true
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+  }
   # Origin Groups with multiple origins and comprehensive settings
   origin_groups = {
     "origin-group-01" = {
@@ -220,7 +251,7 @@ module "test" {
       }
     }
   }
-
+  origin_response_timeout_seconds = 240
   # Rule Sets with comprehensive rules
   rule_sets = {
     "ruleset-01" = {
@@ -232,11 +263,13 @@ module "test" {
           match_processing_behavior = "Continue"
           actions = [
             {
-              name = "CacheExpiration"
+              name = "UrlRedirect"
               parameters = {
-                typeName      = "DeliveryRuleCacheExpirationActionParameters"
-                cacheBehavior = "Override"
-                cacheDuration = "1.00:00:00"
+                typeName            = "DeliveryRuleUrlRedirectActionParameters"
+                redirectType        = "PermanentRedirect"
+                destinationProtocol = "Https"
+                customPath          = "/v2/api/"
+                customHostname      = "api.example.com"
               }
             }
           ]
@@ -244,50 +277,12 @@ module "test" {
       }
     }
   }
-
-  # AFD Endpoints with routes and cache configuration
-  afd_endpoints = {
-    "endpoint-01" = {
-      name          = "${module.naming.cdn_profile.name_unique}afdep"
-      enabled_state = "Enabled"
-      routes = {
-        "route-01" = {
-          name            = "${module.naming.cdn_profile.name_unique}route1"
-          origin_group_id = module.test.origin_group_ids["origin-group-01"]
-          custom_domains = [
-            {
-              id = module.test.custom_domain_ids["custom-domain-01"]
-            }
-          ]
-          enabled_state          = "Enabled"
-          forwarding_protocol    = "MatchRequest"
-          https_redirect         = "Enabled"
-          link_to_default_domain = "Enabled"
-          patterns_to_match      = ["/api/*", "/health"]
-          supported_protocols    = ["Http", "Https"]
-          cache_configuration = {
-            query_string_caching_behavior = "IncludeSpecifiedQueryStrings"
-            query_parameters              = "version,locale"
-            compression_settings = {
-              content_types_to_compress = [
-                "application/json",
-                "text/css",
-                "text/html"
-              ]
-              is_compression_enabled = true
-            }
-          }
-          rule_sets = [
-            {
-              id = module.test.rule_set_ids["ruleset-01"]
-            }
-          ]
-        }
-      }
-      tags = {
-        EndpointType = "AFD"
-      }
-    }
+  # Tags
+  tags = {
+    Environment = "Test"
+    Application = "CDN"
+    CostCenter  = "12345"
+    Owner       = "TestTeam"
   }
 
   depends_on = [
