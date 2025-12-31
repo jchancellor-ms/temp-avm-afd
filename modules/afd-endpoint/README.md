@@ -26,19 +26,43 @@ The following input variables are required:
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the AFD Endpoint.
+Description: The name of the Azure Front Door (AFD) endpoint.
+
+This will be used as part of the endpoint's auto-generated domain name (e.g., `{name}.azurefd.net`).
+
+Example Input:
+
+```hcl
+name = "my-afd-endpoint"
+```
 
 Type: `string`
 
 ### <a name="input_profile_id"></a> [profile\_id](#input\_profile\_id)
 
-Description: The resource ID of the parent CDN profile.
+Description: The full Azure resource ID of the parent CDN profile.
+
+Format: `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}`
+
+Example Input:
+
+```hcl
+profile_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-cdn-profile"
+```
 
 Type: `string`
 
 ### <a name="input_profile_name"></a> [profile\_name](#input\_profile\_name)
 
 Description: The name of the parent CDN profile.
+
+This is used for constructing child resource IDs and references.
+
+Example Input:
+
+```hcl
+profile_name = "my-cdn-profile"
+```
 
 Type: `string`
 
@@ -48,7 +72,19 @@ The following input variables are optional (have default values):
 
 ### <a name="input_auto_generated_domain_name_label_scope"></a> [auto\_generated\_domain\_name\_label\_scope](#input\_auto\_generated\_domain\_name\_label\_scope)
 
-Description: Indicates the endpoint name reuse scope. The default value is TenantReuse.
+Description: Specifies the reuse scope for the auto-generated endpoint domain name.
+
+This controls whether the endpoint name can be reused in different scopes:
+- `NoReuse` - The endpoint name must be globally unique across all Azure tenants
+- `ResourceGroupReuse` - The endpoint name can be reused in different resource groups
+- `SubscriptionReuse` - The endpoint name can be reused in different subscriptions
+- `TenantReuse` - The endpoint name can be reused in different tenants (default)
+
+Example Input:
+
+```hcl
+auto_generated_domain_name_label_scope = "TenantReuse"
+```
 
 Type: `string`
 
@@ -56,7 +92,17 @@ Default: `"TenantReuse"`
 
 ### <a name="input_enabled_state"></a> [enabled\_state](#input\_enabled\_state)
 
-Description: Indicates whether the AFD Endpoint is enabled. The default value is Enabled.
+Description: Whether the AFD endpoint is enabled and can serve traffic.
+
+Possible values:
+- `Enabled` - The endpoint is active and can serve traffic (default)
+- `Disabled` - The endpoint is inactive and will not serve traffic
+
+Example Input:
+
+```hcl
+enabled_state = "Enabled"
+```
 
 Type: `string`
 
@@ -64,7 +110,15 @@ Default: `"Enabled"`
 
 ### <a name="input_location"></a> [location](#input\_location)
 
-Description: The location of the AFD Endpoint.
+Description: The Azure region where the AFD endpoint metadata is stored.
+
+For Azure Front Door endpoints, this should typically be set to `global` as AFD is a globally distributed service.
+
+Example Input:
+
+```hcl
+location = "global"
+```
 
 Type: `string`
 
@@ -72,7 +126,40 @@ Default: `"global"`
 
 ### <a name="input_routes"></a> [routes](#input\_routes)
 
-Description: A map of routes for this AFD Endpoint.
+Description: A map of routes to configure for this AFD endpoint.
+
+Routes define how traffic is handled for specific URL patterns, including origin selection, caching behavior, custom domains, and rule sets.
+
+- `<map key>` - Use a custom map key to define each route configuration
+  - `name`            = (Required) The name of the route
+  - `origin_group_id` = (Required) The Azure resource ID of the origin group to route traffic to
+  - `cache_configuration` = (Optional) Cache configuration for this route
+    - `query_string_caching_behavior` = (Optional) How to handle query strings in caching
+    - `query_parameters`              = (Optional) Query parameters to include/exclude from caching
+    - `compression_settings` = (Optional) Compression configuration
+      - `content_types_to_compress` = (Optional) List of content types to compress
+      - `is_compression_enabled`    = (Optional) Whether compression is enabled
+  - `custom_domain_ids`   = (Optional) List of custom domain resource IDs to associate with this route
+  - `enabled_state`       = (Optional) Whether the route is enabled
+  - `forwarding_protocol` = (Optional) Protocol to use when forwarding to origin
+  - `https_redirect`         = (Optional) Whether to redirect HTTP to HTTPS
+  - `link_to_default_domain` = (Optional) Whether to link to the default endpoint domain
+  - `origin_path`            = (Optional) Path on the origin to retrieve content from
+  - `patterns_to_match`      = (Optional) URL patterns this route should handle
+  - `rule_set_ids`           = (Optional) List of rule set resource IDs to apply
+  - `supported_protocols`    = (Optional) List of supported protocols (Http, Https)
+
+Example Input:
+
+```hcl
+routes = {
+  "default" = {
+    name            = "default-route"
+    origin_group_id = "/subscriptions/.../originGroups/my-origin-group"
+    patterns_to_match = ["/*"]
+  }
+}
+```
 
 Type:
 
@@ -105,7 +192,16 @@ Default: `{}`
 
 ### <a name="input_tags"></a> [tags](#input\_tags)
 
-Description: The tags of the AFD Endpoint.
+Description: A map of tags to assign to the AFD endpoint resource.
+
+Example Input:
+
+```hcl
+tags = {
+  Environment = "Production"
+  Service     = "WebApp"
+}
+```
 
 Type: `map(string)`
 

@@ -26,25 +26,59 @@ The following input variables are required:
 
 ### <a name="input_afd_endpoint_id"></a> [afd\_endpoint\_id](#input\_afd\_endpoint\_id)
 
-Description: The resource ID of the AFD endpoint.
+Description: The full Azure resource ID of the parent AFD endpoint.
+
+Format: `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/afdEndpoints/{endpointName}`
+
+Example Input:
+
+```hcl
+afd_endpoint_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/afdEndpoints/my-endpoint"
+```
 
 Type: `string`
 
 ### <a name="input_afd_endpoint_name"></a> [afd\_endpoint\_name](#input\_afd\_endpoint\_name)
 
-Description: The name of the AFD endpoint.
+Description: The name of the parent AFD endpoint.
+
+This is used for constructing resource references and dependencies.
+
+Example Input:
+
+```hcl
+afd_endpoint_name = "my-afd-endpoint"
+```
 
 Type: `string`
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the route.
+Description: The name of the AFD endpoint route.
+
+This identifies the specific routing rule within the endpoint.
+
+Example Input:
+
+```hcl
+name = "api-route"
+```
 
 Type: `string`
 
 ### <a name="input_origin_group_id"></a> [origin\_group\_id](#input\_origin\_group\_id)
 
-Description: The resource ID of the origin group.
+Description: The full Azure resource ID of the origin group to route traffic to.
+
+This defines which backend origin group will handle requests matching this route.
+
+Format: `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/originGroups/{originGroupName}`
+
+Example Input:
+
+```hcl
+origin_group_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/originGroups/my-origin-group"
+```
 
 Type: `string`
 
@@ -66,7 +100,27 @@ The following input variables are optional (have default values):
 
 ### <a name="input_cache_configuration"></a> [cache\_configuration](#input\_cache\_configuration)
 
-Description: The caching configuration for this route. To disable caching, do not provide a cacheConfiguration object.
+Description: Caching configuration for this route.
+
+Controls how content is cached at Azure Front Door edge locations. If not provided, caching will be disabled for this route.
+
+- `query_string_caching_behavior` = (Optional) How to handle query strings when caching. Possible values: `IgnoreQueryString`, `UseQueryString`, `IgnoreSpecifiedQueryStrings`, `IncludeSpecifiedQueryStrings`
+- `query_parameters`              = (Optional) Comma-separated list of query parameters to include or exclude from caching
+- `compression_settings` = (Optional) Compression configuration
+  - `content_types_to_compress` = (Optional) List of MIME types to compress (e.g., `["application/json", "text/html"]`)
+  - `is_compression_enabled`    = (Optional) Whether to enable compression
+
+Example Input:
+
+```hcl
+cache_configuration = {
+  query_string_caching_behavior = "IgnoreQueryString"
+  compression_settings = {
+    content_types_to_compress = ["application/json", "text/html", "text/css"]
+    is_compression_enabled    = true
+  }
+}
+```
 
 Type:
 
@@ -85,7 +139,20 @@ Default: `null`
 
 ### <a name="input_custom_domain_ids"></a> [custom\_domain\_ids](#input\_custom\_domain\_ids)
 
-Description: The resource IDs of the custom domains.
+Description: A list of custom domain Azure resource IDs to associate with this route.
+
+Custom domains allow you to use your own domain names (e.g., `www.example.com`) instead of the default `*.azurefd.net` domain.
+
+Format: `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/customDomains/{domainName}`
+
+Example Input:
+
+```hcl
+custom_domain_ids = [
+  "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/customDomains/www-example-com",
+  "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/customDomains/api-example-com"
+]
+```
 
 Type: `list(string)`
 
@@ -93,7 +160,17 @@ Default: `[]`
 
 ### <a name="input_enabled_state"></a> [enabled\_state](#input\_enabled\_state)
 
-Description: Whether to enable use of this rule.
+Description: Whether this route is enabled and actively handling traffic.
+
+Possible values:
+- `Enabled` - Route is active and will handle matching requests (default)
+- `Disabled` - Route is inactive and will not handle requests
+
+Example Input:
+
+```hcl
+enabled_state = "Enabled"
+```
 
 Type: `string`
 
@@ -101,7 +178,18 @@ Default: `"Enabled"`
 
 ### <a name="input_forwarding_protocol"></a> [forwarding\_protocol](#input\_forwarding\_protocol)
 
-Description: The protocol this rule will use when forwarding traffic to backends.
+Description: The protocol to use when forwarding traffic from Azure Front Door to the origin servers.
+
+Possible values:
+- `HttpOnly` - Always use HTTP when forwarding to origins
+- `HttpsOnly` - Always use HTTPS when forwarding to origins
+- `MatchRequest` - Use the same protocol as the client request (default)
+
+Example Input:
+
+```hcl
+forwarding_protocol = "HttpsOnly"
+```
 
 Type: `string`
 
@@ -109,7 +197,19 @@ Default: `"MatchRequest"`
 
 ### <a name="input_https_redirect"></a> [https\_redirect](#input\_https\_redirect)
 
-Description: Whether to automatically redirect HTTP traffic to HTTPS traffic.
+Description: Whether to automatically redirect HTTP requests to HTTPS.
+
+When enabled, any HTTP request will receive a redirect response to the equivalent HTTPS URL.
+
+Possible values:
+- `Enabled` - Automatically redirect HTTP to HTTPS (default, recommended for security)
+- `Disabled` - Allow HTTP requests without redirecting
+
+Example Input:
+
+```hcl
+https_redirect = "Enabled"
+```
 
 Type: `string`
 
@@ -117,7 +217,17 @@ Default: `"Enabled"`
 
 ### <a name="input_link_to_default_domain"></a> [link\_to\_default\_domain](#input\_link\_to\_default\_domain)
 
-Description: Whether this route will be linked to the default endpoint domain.
+Description: Whether this route should be accessible via the default `*.azurefd.net` endpoint domain.
+
+Possible values:
+- `Enabled` - Route is accessible via both custom domains and the default domain (default)
+- `Disabled` - Route is only accessible via custom domains
+
+Example Input:
+
+```hcl
+link_to_default_domain = "Disabled"
+```
 
 Type: `string`
 
@@ -125,7 +235,15 @@ Default: `"Enabled"`
 
 ### <a name="input_origin_path"></a> [origin\_path](#input\_origin\_path)
 
-Description: A directory path on the origin that AzureFrontDoor can use to retrieve content from.
+Description: A directory path on the origin server that Azure Front Door should prepend to the request path.
+
+This allows you to serve content from a specific subdirectory on the origin without modifying client URLs.
+
+Example Input:
+
+```hcl
+origin_path = "/api/v2"
+```
 
 Type: `string`
 
@@ -133,7 +251,21 @@ Default: `null`
 
 ### <a name="input_patterns_to_match"></a> [patterns\_to\_match](#input\_patterns\_to\_match)
 
-Description: The route patterns of the rule.
+Description: URL path patterns that this route should match and handle.
+
+Supports wildcards (*) for flexible matching. If not specified, the route will not match any requests.
+
+Example Input:
+
+```hcl
+patterns_to_match = ["/api/*", "/v1/*", "/v2/*"]
+```
+
+For a catch-all route:
+
+```hcl
+patterns_to_match = ["/*"]
+```
 
 Type: `list(string)`
 
@@ -141,7 +273,19 @@ Default: `null`
 
 ### <a name="input_rule_set_ids"></a> [rule\_set\_ids](#input\_rule\_set\_ids)
 
-Description: The resource IDs of the rule sets.
+Description: A list of rule set Azure resource IDs to apply to this route.
+
+Rule sets contain conditional routing rules that can modify request/response headers, perform redirects, rewrites, and more.
+
+Format: `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/ruleSets/{ruleSetName}`
+
+Example Input:
+
+```hcl
+rule_set_ids = [
+  "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/ruleSets/security-rules"
+]
+```
 
 Type: `list(string)`
 
@@ -149,7 +293,25 @@ Default: `[]`
 
 ### <a name="input_supported_protocols"></a> [supported\_protocols](#input\_supported\_protocols)
 
-Description: The supported protocols of the rule.
+Description: The list of protocols that this route supports.
+
+Possible values:
+- `Http` - Allow HTTP requests
+- `Https` - Allow HTTPS requests
+
+Typically you would specify both `["Http", "Https"]` and use `https_redirect` to redirect HTTP to HTTPS.
+
+Example Input:
+
+```hcl
+supported_protocols = ["Http", "Https"]
+```
+
+For HTTPS-only routes:
+
+```hcl
+supported_protocols = ["Https"]
+```
 
 Type: `list(string)`
 
