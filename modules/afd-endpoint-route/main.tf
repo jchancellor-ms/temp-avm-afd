@@ -8,9 +8,9 @@ locals {
       httpsRedirect       = var.https_redirect
       linkToDefaultDomain = var.link_to_default_domain
     },
-    var.grpc_state != null ? {
-      grpcState = var.grpc_state
-    } : {},
+    #var.grpc_state != null ? { #TODO: enable when supported in AFD Endpoint resource
+    #  grpcState = var.grpc_state
+    #} : {},
     var.cache_configuration != null ? {
       cacheConfiguration = {
         queryStringCachingBehavior = var.cache_configuration.query_string_caching_behavior
@@ -54,7 +54,7 @@ locals {
 resource "azapi_resource" "route" {
   name      = var.name
   parent_id = var.afd_endpoint_id
-  type      = "Microsoft.Cdn/profiles/afdEndpoints/routes@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01"
   body = {
     properties = local.route_properties
   }

@@ -26,37 +26,92 @@ The following input variables are required:
 
 ### <a name="input_host_name"></a> [host\_name](#input\_host\_name)
 
-Description: The address of the origin. Domain names, IPv4 addresses, and IPv6 addresses are supported.
+Description: The address of the origin server.
+
+This can be a domain name, IPv4 address, or IPv6 address pointing to your backend server.
+
+Examples:
+- Domain name: `backend.example.com`
+- IPv4 address: `192.0.2.1`
+- IPv6 address: `2001:db8::1`
+
+Example Input:
+
+```hcl
+host_name = "backend.example.com"
+```
 
 Type: `string`
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the origin.
+Description: The name of the origin resource.
+
+This name uniquely identifies the origin within its origin group.
+
+Example Input:
+
+```hcl
+name = "primary-backend"
+```
 
 Type: `string`
 
 ### <a name="input_origin_group_id"></a> [origin\_group\_id](#input\_origin\_group\_id)
 
-Description: The resource ID of the origin group.
+Description: The full Azure Resource ID of the origin group where this origin will be added.
+
+This should be in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/originGroups/{originGroupName}`
+
+Example Input:
+
+```hcl
+origin_group_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/originGroups/my-origin-group"
+```
 
 Type: `string`
 
 ### <a name="input_origin_group_name"></a> [origin\_group\_name](#input\_origin\_group\_name)
 
-Description: The name of the origin group.
+Description: The name of the parent origin group.
+
+This is used to construct resource references and must match the name in the `origin_group_id`.
+
+Example Input:
+
+```hcl
+origin_group_name = "my-origin-group"
+```
 
 Type: `string`
 
 ### <a name="input_profile_id"></a> [profile\_id](#input\_profile\_id)
 
-Description: The resource ID of the parent CDN profile.
+Description: The full Azure Resource ID of the CDN profile.
+
+This should be in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}`
+
+Example Input:
+
+```hcl
+profile_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile"
+```
 
 Type: `string`
 
 ### <a name="input_profile_name"></a> [profile\_name](#input\_profile\_name)
 
 Description: The name of the parent CDN profile.
+
+This is used to construct resource references and must match the name in the `profile_id`.
+
+Example Input:
+
+```hcl
+profile_name = "my-cdn-profile"
+```
 
 Type: `string`
 
@@ -66,7 +121,15 @@ The following input variables are optional (have default values):
 
 ### <a name="input_azure_origin_id"></a> [azure\_origin\_id](#input\_azure\_origin\_id)
 
-Description: Resource ID of the Azure origin resource.
+Description: The full Azure Resource ID of an Azure service to use as the origin.
+
+This is used when your origin is an Azure service such as App Service, Storage Account, or Application Gateway. When specified, Azure Front Door can automatically discover origin properties.
+
+Example Input:
+
+```hcl
+azure_origin_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Web/sites/my-app-service"
+```
 
 Type: `string`
 
@@ -74,7 +137,19 @@ Default: `null`
 
 ### <a name="input_enabled_state"></a> [enabled\_state](#input\_enabled\_state)
 
-Description: Whether to enable health probes to be made against backends.
+Description: Whether this origin is enabled to receive traffic.
+
+When disabled, the origin will not receive any traffic even if it is healthy.
+
+Possible values:
+- `Enabled` - Origin can receive traffic (default)
+- `Disabled` - Origin will not receive traffic
+
+Example Input:
+
+```hcl
+enabled_state = "Enabled"
+```
 
 Type: `string`
 
@@ -82,7 +157,17 @@ Default: `"Enabled"`
 
 ### <a name="input_enforce_certificate_name_check"></a> [enforce\_certificate\_name\_check](#input\_enforce\_certificate\_name\_check)
 
-Description: Whether to enable certificate name check at origin level.
+Description: Whether to validate that the certificate name matches the origin hostname for HTTPS connections.
+
+When enabled, Azure Front Door will verify that the SSL/TLS certificate presented by the origin matches the origin's hostname. This is recommended for production environments to prevent man-in-the-middle attacks.
+
+Set to `false` only for testing environments or when using self-signed certificates.
+
+Example Input:
+
+```hcl
+enforce_certificate_name_check = true
+```
 
 Type: `bool`
 
@@ -90,7 +175,17 @@ Default: `true`
 
 ### <a name="input_http_port"></a> [http\_port](#input\_http\_port)
 
-Description: The value of the HTTP port. Must be between 1 and 65535.
+Description: The TCP port number for HTTP traffic to this origin.
+
+Constraints:
+- Range: 1-65535
+- Default: 80 (standard HTTP port)
+
+Example Input:
+
+```hcl
+http_port = 8080
+```
 
 Type: `number`
 
@@ -98,7 +193,17 @@ Default: `80`
 
 ### <a name="input_https_port"></a> [https\_port](#input\_https\_port)
 
-Description: The value of the HTTPS port. Must be between 1 and 65535.
+Description: The TCP port number for HTTPS traffic to this origin.
+
+Constraints:
+- Range: 1-65535
+- Default: 443 (standard HTTPS port)
+
+Example Input:
+
+```hcl
+https_port = 8443
+```
 
 Type: `number`
 
@@ -106,7 +211,25 @@ Default: `443`
 
 ### <a name="input_origin_capacity_resource"></a> [origin\_capacity\_resource](#input\_origin\_capacity\_resource)
 
-Description: Origin capacity settings for an origin.
+Description: Origin capacity management configuration for traffic control based on origin load.
+
+This feature helps prevent overwhelming origins by monitoring their capacity and adjusting traffic distribution accordingly.
+
+- `enabled`                       = (Required) Whether origin capacity management is enabled. Possible values are `Enabled` or `Disabled`.
+- `origin_ingress_rate_threshold` = (Optional) The ingress rate threshold in Mbps. Must be at least 1 if specified.
+- `origin_request_rate_threshold` = (Optional) The request rate threshold in requests per second. Must be at least 1 if specified.
+- `region`                        = (Optional) The Azure region of the origin for capacity calculations.
+
+Example Input:
+
+```hcl
+origin_capacity_resource = {
+  enabled                       = "Enabled"
+  origin_ingress_rate_threshold = 1000
+  origin_request_rate_threshold = 500
+  region                        = "eastus"
+}
+```
 
 Type:
 
@@ -123,7 +246,15 @@ Default: `null`
 
 ### <a name="input_origin_host_header"></a> [origin\_host\_header](#input\_origin\_host\_header)
 
-Description: The host header value sent to the origin with each request.
+Description: The Host header value to send to the origin with each request.
+
+If not specified, the request hostname will be used. This is useful when the origin requires a specific Host header value that differs from its hostname (e.g., for virtual hosting or origin validation).
+
+Example Input:
+
+```hcl
+origin_host_header = "backend.example.com"
+```
 
 Type: `string`
 
@@ -131,7 +262,20 @@ Default: `null`
 
 ### <a name="input_priority"></a> [priority](#input\_priority)
 
-Description: Priority of origin in given origin group for load balancing. Must be between 1 and 5.
+Description: The priority of this origin for load balancing within its origin group.
+
+Lower values indicate higher priority. Azure Front Door will prefer origins with lower priority values when all origins are healthy.
+
+Constraints:
+- Range: 1-5
+- Default: 1 (highest priority)
+- Lower values = higher priority
+
+Example Input:
+
+```hcl
+priority = 1
+```
 
 Type: `number`
 
@@ -139,7 +283,27 @@ Default: `1`
 
 ### <a name="input_shared_private_link_resource"></a> [shared\_private\_link\_resource](#input\_shared\_private\_link\_resource)
 
-Description: The properties of the private link resource for private origin.
+Description: Private Link configuration for securely connecting to private origins.
+
+This enables Azure Front Door to connect to origins that are not publicly accessible, using Azure Private Link.
+
+- `group_id`              = (Required) The group ID of the private link service (e.g., `sites`, `blob`, `vault`).
+- `private_link_id`       = (Required) The resource ID of the private link service or target resource.
+- `private_link_location` = (Required) The Azure region of the private link service.
+- `request_message`       = (Optional) A message to include with the private endpoint connection request.
+- `status`                = (Optional) The status of the private link connection. Possible values are `Approved`, `Disconnected`, `Pending`, `Rejected`, or `Timeout`.
+
+Example Input:
+
+```hcl
+shared_private_link_resource = {
+  group_id              = "sites"
+  private_link_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Web/sites/my-app-service"
+  private_link_location = "eastus"
+  request_message       = "Please approve this connection"
+  status                = "Approved"
+}
+```
 
 Type:
 
@@ -157,7 +321,22 @@ Default: `null`
 
 ### <a name="input_weight"></a> [weight](#input\_weight)
 
-Description: Weight of the origin in given origin group for load balancing. Must be between 1 and 1000.
+Description: The weight of this origin for load balancing within its origin group.
+
+Higher values mean the origin will receive proportionally more traffic. This is used when multiple origins have the same priority.
+
+Constraints:
+- Range: 1-1000
+- Default: 1000 (maximum weight)
+- Higher values = more traffic
+
+For example, with two origins weighted 1000 and 500, the first will receive approximately 2/3 of the traffic.
+
+Example Input:
+
+```hcl
+weight = 1000
+```
 
 Type: `number`
 

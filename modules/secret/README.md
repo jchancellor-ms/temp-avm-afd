@@ -26,13 +26,32 @@ The following input variables are required:
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the secret.
+Description: The name of the secret resource.
+
+Constraints:
+- Must be between 1 and 260 characters
+- Can only contain alphanumeric characters and hyphens
+
+Example Input:
+
+```hcl
+name = "my-custom-certificate"
+```
 
 Type: `string`
 
 ### <a name="input_profile_id"></a> [profile\_id](#input\_profile\_id)
 
-Description: The resource ID of the CDN profile.
+Description: The full Azure Resource ID of the CDN profile where this secret will be stored.
+
+This should be in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}`
+
+Example Input:
+
+```hcl
+profile_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile"
+```
 
 Type: `string`
 
@@ -42,7 +61,15 @@ The following input variables are optional (have default values):
 
 ### <a name="input_key_id"></a> [key\_id](#input\_key\_id)
 
-Description: Defines the customer defined key Id. This id will exist in the incoming request to indicate the key used to form the hash. Required for UrlSigningKey type.
+Description: The customer-defined key identifier for URL signing keys.
+
+This ID will appear in incoming requests to indicate which key was used to form the signature hash. Required when `type` is `UrlSigningKey`.
+
+Example Input:
+
+```hcl
+key_id = "signing-key-1"
+```
 
 Type: `string`
 
@@ -50,7 +77,21 @@ Default: `null`
 
 ### <a name="input_secret_source_resource_id"></a> [secret\_source\_resource\_id](#input\_secret\_source\_resource\_id)
 
-Description: The resource ID of the secret source (Azure Key Vault secret or certificate). Required for CustomerCertificate, MtlsCertificateChain, and UrlSigningKey types.
+Description: The full Azure Resource ID of the Azure Key Vault secret or certificate containing the secret value.
+
+Required for the following secret types:
+- `CustomerCertificate` - Customer-provided TLS certificate
+- `MtlsCertificateChain` - mTLS CA certificate chain
+- `UrlSigningKey` - URL signing key
+
+Must be a valid Azure Key Vault secret resource ID in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{vaultName}/secrets/{secretName}`
+
+Example Input:
+
+```hcl
+secret_source_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.KeyVault/vaults/my-keyvault/secrets/my-cert"
+```
 
 Type: `string`
 
@@ -58,7 +99,18 @@ Default: `null`
 
 ### <a name="input_secret_version"></a> [secret\_version](#input\_secret\_version)
 
-Description: The version of the secret. Used for CustomerCertificate, MtlsCertificateChain, and UrlSigningKey types.
+Description: The specific version of the Azure Key Vault secret to use.
+
+If not specified, the latest version will be used. Used for:
+- `CustomerCertificate`
+- `MtlsCertificateChain`
+- `UrlSigningKey`
+
+Example Input:
+
+```hcl
+secret_version = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+```
 
 Type: `string`
 
@@ -66,7 +118,19 @@ Default: `null`
 
 ### <a name="input_subject_alternative_names"></a> [subject\_alternative\_names](#input\_subject\_alternative\_names)
 
-Description: The list of subject alternative names (SANs). Used for AzureFirstPartyManagedCertificate type.
+Description: The list of Subject Alternative Names (SANs) for the certificate.
+
+Used when `type` is `AzureFirstPartyManagedCertificate` to specify additional domain names covered by the certificate.
+
+Example Input:
+
+```hcl
+subject_alternative_names = [
+  "www.example.com",
+  "api.example.com",
+  "cdn.example.com"
+]
+```
 
 Type: `list(string)`
 
@@ -74,7 +138,20 @@ Default: `[]`
 
 ### <a name="input_type"></a> [type](#input\_type)
 
-Description: The type of the secret.
+Description: The type of secret to create.
+
+Possible values:
+- `AzureFirstPartyManagedCertificate` - Microsoft-managed certificate (default)
+- `CustomerCertificate` - Customer-provided certificate from Azure Key Vault
+- `ManagedCertificate` - Azure Front Door managed certificate (free)
+- `MtlsCertificateChain` - mTLS CA certificate chain from Key Vault
+- `UrlSigningKey` - URL signing key from Key Vault for token authentication
+
+Example Input:
+
+```hcl
+type = "CustomerCertificate"
+```
 
 Type: `string`
 
@@ -82,7 +159,19 @@ Default: `"AzureFirstPartyManagedCertificate"`
 
 ### <a name="input_use_latest_version"></a> [use\_latest\_version](#input\_use\_latest\_version)
 
-Description: Whether to use the latest version for the certificate. Used for CustomerCertificate type.
+Description: Whether to automatically use the latest version of the certificate from Azure Key Vault.
+
+When set to `true`, Azure Front Door will automatically update to use the newest version of the certificate when it changes in Key Vault. This is useful for automatic certificate rotation.
+
+When set to `false`, the specific `secret_version` will be used (or the current latest version at deployment time if `secret_version` is not specified).
+
+Used for `CustomerCertificate` type only.
+
+Example Input:
+
+```hcl
+use_latest_version = true
+```
 
 Type: `bool`
 

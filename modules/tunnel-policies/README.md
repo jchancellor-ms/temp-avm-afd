@@ -26,13 +26,35 @@ The following input variables are required:
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the tunnel policy.
+Description: The name of the tunnel policy resource.
+
+Tunnel policies enable secure tunneling of traffic from Azure Front Door to backend origins.
+
+Constraints:
+- Must be between 1 and 260 characters
+- Can only contain alphanumeric characters and hyphens
+- Cannot start or end with a hyphen
+
+Example Input:
+
+```hcl
+name = "secure-tunnel-policy"
+```
 
 Type: `string`
 
 ### <a name="input_profile_id"></a> [profile\_id](#input\_profile\_id)
 
-Description: The resource ID of the CDN profile.
+Description: The full Azure Resource ID of the CDN profile where this tunnel policy will be created.
+
+This should be in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}`
+
+Example Input:
+
+```hcl
+profile_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile"
+```
 
 Type: `string`
 
@@ -42,7 +64,21 @@ The following input variables are optional (have default values):
 
 ### <a name="input_domains"></a> [domains](#input\_domains)
 
-Description: List of domain resource references. Each domain includes a resource ID.
+Description: List of custom domain resource references that this tunnel policy applies to.
+
+Each domain specifies an Azure Front Door custom domain resource ID.
+
+- `id` = (Required) The full Azure Resource ID of the custom domain
+
+Example Input:
+
+```hcl
+domains = [
+  {
+    id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/customDomains/www-example-com"
+  }
+]
+```
 
 Type:
 
@@ -56,7 +92,21 @@ Default: `[]`
 
 ### <a name="input_target_groups"></a> [target\_groups](#input\_target\_groups)
 
-Description: List of target group resource references. Each target group includes a resource ID.
+Description: List of target group resource references that define backend endpoints for this tunnel.
+
+Each target group specifies an Azure Front Door target group resource ID containing backend endpoints.
+
+- `id` = (Required) The full Azure Resource ID of the target group
+
+Example Input:
+
+```hcl
+target_groups = [
+  {
+    id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/targetGroups/backend-targets"
+  }
+]
+```
 
 Type:
 
@@ -70,7 +120,18 @@ Default: `[]`
 
 ### <a name="input_tunnel_type"></a> [tunnel\_type](#input\_tunnel\_type)
 
-Description: Protocol this tunnel will use for allowing traffic to backends.
+Description: The tunneling protocol used for forwarding traffic to backend endpoints.
+
+Currently, only HTTP CONNECT tunneling is supported, which enables secure proxy-style connections to backends.
+
+Possible values:
+- `HttpConnect` - HTTP CONNECT proxy protocol (default and only supported value)
+
+Example Input:
+
+```hcl
+tunnel_type = "HttpConnect"
+```
 
 Type: `string`
 

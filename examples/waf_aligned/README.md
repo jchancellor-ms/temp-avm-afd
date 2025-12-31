@@ -93,7 +93,7 @@ resource "azurerm_eventhub" "this" {
 }
 
 resource "azurerm_eventhub_namespace_authorization_rule" "this" {
-  name                = "RootManageSharedAccessKey"
+  name                = "${module.naming.cdn_profile.name_unique}RootManageSharedAccessKey"
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
   listen              = true

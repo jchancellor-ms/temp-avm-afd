@@ -89,7 +89,7 @@ resource "azurerm_eventhub" "this" {
 }
 
 resource "azurerm_eventhub_namespace_authorization_rule" "this" {
-  name                = "RootManageSharedAccessKey"
+  name                = "${module.naming.cdn_profile.name_unique}RootManageSharedAccessKey"
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = azurerm_resource_group.this.name
   listen              = true
@@ -113,11 +113,9 @@ module "test" {
       routes = {
         "route-01" = {
           name            = "${module.naming.cdn_profile.name_unique}route1"
-          origin_group_id = module.test.origin_group_ids["origin-group-01"]
-          custom_domains = [
-            {
-              id = module.test.custom_domain_ids["custom-domain-01"]
-            }
+          origin_group_id = "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}max/originGroups/${module.naming.cdn_profile.name_unique}origingrp1"
+          custom_domain_ids = [
+            "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}max/customDomains/${module.naming.cdn_profile.name_unique}customdom1"
           ]
           enabled_state          = "Enabled"
           forwarding_protocol    = "MatchRequest"
@@ -137,10 +135,8 @@ module "test" {
               is_compression_enabled = true
             }
           }
-          rule_sets = [
-            {
-              id = module.test.rule_set_ids["ruleset-01"]
-            }
+          rule_set_ids = [
+            "${lower(azurerm_resource_group.this.id)}/providers/Microsoft.Cdn/profiles/${module.naming.cdn_profile.name_unique}max/ruleSets/${replace(module.naming.cdn_profile.name_unique, "-", "")}ruleset1"
           ]
         }
       }

@@ -26,19 +26,52 @@ The following input variables are required:
 
 ### <a name="input_name"></a> [name](#input\_name)
 
-Description: The name of the rule.
+Description: The name of the routing rule.
+
+Constraints:
+- Must be between 1 and 260 characters
+- Must start with a letter
+- Can only contain alphanumeric characters
+
+Example Input:
+
+```hcl
+name = "RedirectToHttps"
+```
 
 Type: `string`
 
 ### <a name="input_order"></a> [order](#input\_order)
 
-Description: The order in which the rules are applied for the endpoint. Possible values {0,1,2,3,…}. A rule with a lesser order will be applied before a rule with a greater order. Rule with order 0 is a special rule. It does not require any condition and actions listed in it will always be applied.
+Description: The execution order of this rule within the rule set.
+
+Rules with lower order values are evaluated first. Order 0 is special - it always executes without requiring conditions.
+
+Constraints:
+- Must be non-negative (0 or greater)
+- Lower values execute first
+- Order 0 rules always execute (conditions are ignored)
+
+Example Input:
+
+```hcl
+order = 1
+```
 
 Type: `number`
 
 ### <a name="input_rule_set_id"></a> [rule\_set\_id](#input\_rule\_set\_id)
 
-Description: The resource ID of the rule set.
+Description: The full Azure Resource ID of the rule set that will contain this rule.
+
+This should be in the format:
+`/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Cdn/profiles/{profileName}/ruleSets/{ruleSetName}`
+
+Example Input:
+
+```hcl
+rule_set_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/my-rg/providers/Microsoft.Cdn/profiles/my-profile/ruleSets/SecurityRules"
+```
 
 Type: `string`
 
@@ -48,7 +81,35 @@ The following input variables are optional (have default values):
 
 ### <a name="input_actions"></a> [actions](#input\_actions)
 
-Description: A list of actions that are executed when all the conditions of a rule are satisfied.
+Description: List of actions to execute when all rule conditions are satisfied.
+
+Actions modify requests or responses, such as redirecting URLs, modifying headers, adjusting cache behavior, or rewriting URLs.
+
+- `name` = (Required) The action type. Possible values:
+  - `CacheExpiration` - Modify cache TTL
+  - `CacheKeyQueryString` - Control query string caching
+  - `ModifyRequestHeader` - Add/modify/delete request headers
+  - `ModifyResponseHeader` - Add/modify/delete response headers
+  - `OriginGroupOverride` - Route to a different origin group
+  - `RouteConfigurationOverride` - Override route configuration
+  - `UrlRedirect` - Redirect to a different URL
+  - `UrlRewrite` - Rewrite request URL
+  - `UrlSigning` - Configure URL signing
+- `parameters` = (Optional) Action-specific parameters (structure varies by action type)
+
+Example Input:
+
+```hcl
+actions = [
+  {
+    name = "UrlRedirect"
+    parameters = {
+      redirectType        = "Moved"
+      destinationProtocol = "Https"
+    }
+  }
+]
+```
 
 Type:
 
@@ -101,7 +162,49 @@ Default: `[]`
 
 ### <a name="input_conditions"></a> [conditions](#input\_conditions)
 
-Description: A list of conditions that must be matched for the actions to be executed.
+Description: List of conditions that must all be satisfied for the actions to execute.
+
+Conditions evaluate request properties to determine if the rule should apply.
+
+- `name` = (Required) The condition type. Possible values:
+  - `RemoteAddress` - Client IP address
+  - `RequestMethod` - HTTP method (GET, POST, etc.)
+  - `RequestUri` - Full request URI
+  - `QueryString` - Query string parameters
+  - `RequestHeader` - Request header values
+  - `RequestBody` - Request body content
+  - `RequestScheme` - HTTP or HTTPS
+  - `UrlPath` - URL path
+  - `UrlFileExtension` - File extension
+  - `UrlFileName` - File name
+  - `HttpVersion` - HTTP protocol version
+  - `Cookies` - Cookie values
+  - `IsDevice` - Device type detection
+  - `SocketAddress` - Socket address
+  - `ClientPort` - Client port number
+  - `ServerPort` - Server port number
+  - `HostName` - Host header value
+  - `SslProtocol` - TLS/SSL protocol version
+- `parameters` = (Optional) Condition-specific parameters
+  - `matchValues` = (Optional) Values to match against
+  - `operator` = (Optional) Comparison operator (e.g., `Equal`, `Contains`, `IPMatch`)
+  - `negateCondition` = (Optional) Negate the condition result
+  - `selector` = (Optional) Specific field to inspect (e.g., header name)
+  - `transforms` = (Optional) Transforms to apply before matching
+
+Example Input:
+
+```hcl
+conditions = [
+  {
+    name = "RequestScheme"
+    parameters = {
+      operator    = "Equal"
+      matchValues = ["HTTP"]
+    }
+  }
+]
+```
 
 Type:
 
@@ -125,7 +228,17 @@ Default: `[]`
 
 ### <a name="input_match_processing_behavior"></a> [match\_processing\_behavior](#input\_match\_processing\_behavior)
 
-Description: If this rule is a match should the rules engine continue running the remaining rules or stop. If not present, defaults to Continue.
+Description: Determines whether the rules engine should continue processing remaining rules after this rule matches.
+
+Possible values:
+- `Continue` - Process remaining rules after this rule (default)
+- `Stop` - Stop processing rules after this rule matches
+
+Example Input:
+
+```hcl
+match_processing_behavior = "Stop"
+```
 
 Type: `string`
 

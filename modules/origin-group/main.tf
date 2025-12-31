@@ -45,7 +45,7 @@ locals {
 resource "azapi_resource" "origin_group" {
   name      = var.name
   parent_id = var.profile_id
-  type      = "Microsoft.Cdn/profiles/originGroups@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles/originGroups@2025-06-01"
   body = {
     properties = local.origin_group_properties
   }

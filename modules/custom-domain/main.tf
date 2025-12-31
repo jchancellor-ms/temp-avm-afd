@@ -82,7 +82,7 @@ locals {
 resource "azapi_resource" "custom_domain" {
   name      = var.name
   parent_id = var.profile_id
-  type      = "Microsoft.Cdn/profiles/customDomains@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles/customDomains@2025-06-01"
   body = {
     properties = local.custom_domain_properties
   }

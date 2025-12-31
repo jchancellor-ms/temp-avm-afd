@@ -36,7 +36,7 @@ locals {
 resource "azapi_resource" "rule" {
   name      = var.name
   parent_id = var.rule_set_id
-  type      = "Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15"
+  type      = "Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01"
   body = {
     properties = local.rule_properties
   }

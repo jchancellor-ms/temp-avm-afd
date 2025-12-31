@@ -31,7 +31,7 @@ resource "azapi_resource" "profile" {
   location  = var.location
   name      = var.name
   parent_id = var.resource_group_id
-  type      = "Microsoft.Cdn/profiles@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles@2025-06-01"
   body = {
     sku = {
       name = var.sku_name
@@ -51,6 +51,9 @@ resource "azapi_resource" "profile" {
       type         = identity.value.type
       identity_ids = identity.value.identity_ids
     }
+  }
+  timeouts {
+    delete = "1h"
   }
 }
 
@@ -125,10 +128,10 @@ module "afd_endpoint" {
   profile_name                           = azapi_resource.profile.name
   auto_generated_domain_name_label_scope = each.value.auto_generated_domain_name_label_scope
   enabled_state                          = each.value.enabled_state
-  enforce_mtls                           = each.value.enforce_mtls
-  location                               = var.location
-  routes                                 = each.value.routes
-  tags                                   = each.value.tags
+  #enforce_mtls                           = each.value.enforce_mtls #TODO: enable when supported in AFD Endpoint resource
+  location = var.location
+  routes   = each.value.routes
+  tags     = each.value.tags
 
   depends_on = [
     module.origin_group,
