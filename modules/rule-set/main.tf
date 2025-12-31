@@ -1,7 +1,7 @@
 resource "azapi_resource" "rule_set" {
   name      = var.name
   parent_id = var.profile_id
-  type      = "Microsoft.Cdn/profiles/ruleSets@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles/ruleSets@2025-06-01"
 }
 
 module "rule" {

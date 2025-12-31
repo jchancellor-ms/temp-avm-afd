@@ -107,14 +107,6 @@ Type: `string`
 
 Default: `"MatchRequest"`
 
-### <a name="input_grpc_state"></a> [grpc\_state](#input\_grpc\_state)
-
-Description: Whether or not gRPC is enabled on this route. Permitted values are 'Enabled' or 'Disabled'.
-
-Type: `string`
-
-Default: `null`
-
 ### <a name="input_https_redirect"></a> [https\_redirect](#input\_https\_redirect)
 
 Description: Whether to automatically redirect HTTP traffic to HTTPS traffic.

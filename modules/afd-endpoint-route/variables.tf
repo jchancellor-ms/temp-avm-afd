@@ -1,3 +1,15 @@
+/*
+variable "grpc_state" {
+  type        = string
+  default     = null
+  description = "Whether or not gRPC is enabled on this route. Permitted values are 'Enabled' or 'Disabled'."
+
+  validation {
+    condition     = var.grpc_state == null || can(regex("^(Enabled|Disabled)$", var.grpc_state))
+    error_message = "grpc_state must be either 'Enabled' or 'Disabled'."
+  }
+}
+*/
 variable "afd_endpoint_id" {
   type        = string
   description = "The resource ID of the AFD endpoint."
@@ -66,17 +78,6 @@ variable "forwarding_protocol" {
   validation {
     condition     = can(regex("^(HttpOnly|HttpsOnly|MatchRequest)$", var.forwarding_protocol))
     error_message = "forwarding_protocol must be one of: HttpOnly, HttpsOnly, MatchRequest."
-  }
-}
-
-variable "grpc_state" {
-  type        = string
-  default     = null
-  description = "Whether or not gRPC is enabled on this route. Permitted values are 'Enabled' or 'Disabled'."
-
-  validation {
-    condition     = var.grpc_state == null || can(regex("^(Enabled|Disabled)$", var.grpc_state))
-    error_message = "grpc_state must be either 'Enabled' or 'Disabled'."
   }
 }
 

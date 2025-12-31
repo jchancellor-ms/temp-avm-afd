@@ -147,7 +147,7 @@ locals {
 resource "azapi_resource" "security_policy" {
   name      = var.name
   parent_id = var.profile_id
-  type      = "Microsoft.Cdn/profiles/securityPolicies@2025-09-01-preview"
+  type      = "Microsoft.Cdn/profiles/securityPolicies@2025-06-01"
   body = {
     properties = {
       parameters = local.parameters

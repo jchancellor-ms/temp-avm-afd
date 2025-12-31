@@ -1,3 +1,15 @@
+/* #TODO: enable when supported in AFD Endpoint resource
+variable "enforce_mtls" {
+  type        = string
+  default     = "Disabled"
+  description = "Set to Disabled by default. If set to Enabled, only custom domains with mTLS enabled can be added to child Route resources."
+
+  validation {
+    condition     = can(regex("^(Enabled|Disabled)$", var.enforce_mtls))
+    error_message = "enforce_mtls must be either 'Enabled' or 'Disabled'."
+  }
+}
+*/
 variable "name" {
   type        = string
   description = "The name of the AFD Endpoint."
@@ -35,17 +47,6 @@ variable "enabled_state" {
   }
 }
 
-variable "enforce_mtls" {
-  type        = string
-  default     = "Disabled"
-  description = "Set to Disabled by default. If set to Enabled, only custom domains with mTLS enabled can be added to child Route resources."
-
-  validation {
-    condition     = can(regex("^(Enabled|Disabled)$", var.enforce_mtls))
-    error_message = "enforce_mtls must be either 'Enabled' or 'Disabled'."
-  }
-}
-
 variable "location" {
   type        = string
   default     = "global"
@@ -64,10 +65,10 @@ variable "routes" {
         is_compression_enabled    = optional(bool)
       }))
     }))
-    custom_domain_ids      = optional(list(string))
-    enabled_state          = optional(string)
-    forwarding_protocol    = optional(string)
-    grpc_state             = optional(string)
+    custom_domain_ids   = optional(list(string))
+    enabled_state       = optional(string)
+    forwarding_protocol = optional(string)
+    #grpc_state             = optional(string) #TODO: enable when supported in AFD Endpoint resource route resource
     https_redirect         = optional(string)
     link_to_default_domain = optional(string)
     origin_path            = optional(string)

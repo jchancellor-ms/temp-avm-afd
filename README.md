@@ -67,7 +67,7 @@ map(object({
     name                                   = string
     auto_generated_domain_name_label_scope = optional(string, "TenantReuse")
     enabled_state                          = optional(string, "Enabled")
-    enforce_mtls                           = optional(string, "Disabled")
+    #enforce_mtls                           = optional(string, "Disabled") #TODO: enable when supported in AFD Endpoint resource
     routes = optional(map(object({
       name                   = string
       custom_domain_ids      = optional(list(string), [])
@@ -80,7 +80,7 @@ map(object({
       link_to_default_domain = optional(string, "Enabled")
       https_redirect         = optional(string, "Enabled")
       enabled_state          = optional(string, "Enabled")
-      grpc_state             = optional(string, "Disabled")
+      #grpc_state             = optional(string, "Disabled") #TODO: enable when supported in AFD Endpoint route resource
       cache_configuration = optional(object({
         query_string_caching_behavior = optional(string)
         query_parameters              = optional(string)

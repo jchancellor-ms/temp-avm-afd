@@ -62,14 +62,6 @@ Type: `string`
 
 Default: `"Enabled"`
 
-### <a name="input_enforce_mtls"></a> [enforce\_mtls](#input\_enforce\_mtls)
-
-Description: Set to Disabled by default. If set to Enabled, only custom domains with mTLS enabled can be added to child Route resources.
-
-Type: `string`
-
-Default: `"Disabled"`
-
 ### <a name="input_location"></a> [location](#input\_location)
 
 Description: The location of the AFD Endpoint.
@@ -96,10 +88,10 @@ map(object({
         is_compression_enabled    = optional(bool)
       }))
     }))
-    custom_domain_ids      = optional(list(string))
-    enabled_state          = optional(string)
-    forwarding_protocol    = optional(string)
-    grpc_state             = optional(string)
+    custom_domain_ids   = optional(list(string))
+    enabled_state       = optional(string)
+    forwarding_protocol = optional(string)
+    #grpc_state             = optional(string) #TODO: enable when supported in AFD Endpoint resource route resource
     https_redirect         = optional(string)
     link_to_default_domain = optional(string)
     origin_path            = optional(string)
